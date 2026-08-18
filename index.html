@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Hosttail — ลงทะเบียนรับประกันสินค้า</title>
+  <link rel="icon" href="guide-img-1.png" type="image/png" />
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #fff8f0 0%, #fff3e8 100%);
+      min-height: 100vh;
+      color: #2d2d2d;
+    }
+
+    /* ─── Header ─── */
+    .header {
+      background: linear-gradient(135deg, #ff6b35 0%, #ff4500 100%);
+      color: white;
+      text-align: center;
+      padding: 28px 20px 22px;
+      box-shadow: 0 4px 16px rgba(255,107,53,0.3);
+    }
+    .header-logo {
+      font-size: 2.6rem; font-weight: 900; letter-spacing: 3px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    }
+    .header-logo-circle {
+      background: white;
+      border-radius: 50%;
+      width: 14rem;
+      height: 14rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.12);
+    }
+    .header-logo-img { height: 12rem; width: auto; object-fit: contain; display: block; margin: 0 auto; }
+    .header-sub  { font-size: 0.85rem; letter-spacing: 4px; opacity: 0.9; color: white; margin-top: 2px; }
+    .header-title {
+      margin-top: 12px; font-size: 1rem;
+      background: rgba(255,255,255,0.18);
+      color: white;
+      display: inline-block; padding: 5px 18px; border-radius: 20px;
+    }
+
+    /* ─── Line user card ─── */
+    .user-card {
+      background: white; border-radius: 14px; margin: 18px 16px 0;
+      padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    }
+    .user-avatar {
+      width: 46px; height: 46px; border-radius: 50%; background: #e8f5e9;
+      display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+    }
+    .user-info { flex: 1; }
+    .user-name { font-weight: 700; font-size: 0.95rem; }
+    .user-line { font-size: 0.78rem; color: #00b900; margin-top: 2px; }
+    .line-badge {
+      background: #00b900; color: white; border-radius: 8px;
+      font-size: 0.72rem; padding: 3px 8px; font-weight: 600;
+    }
+
+    /* ─── Form wrapper ─── */
+    .form-wrap {
+      margin: 16px 16px 32px; background: white; border-radius: 18px;
+      padding: 24px 18px; box-shadow: 0 2px 14px rgba(0,0,0,0.07);
+    }
+    .section-title {
+      font-size: 0.8rem; font-weight: 700; color: #ff6b35;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      border-bottom: 2px solid #fff0e8; padding-bottom: 6px; margin-bottom: 18px;
+    }
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: #333;
+    }
+    .field label .req { color: #e53935; margin-left: 2px; }
+    .field input[type="text"],
+    .field input[type="tel"],
+    .field select,
+    .field textarea {
+      width: 100%; border: 1.5px solid #e0e0e0; border-radius: 10px;
+      padding: 11px 13px; font-size: 0.9rem; font-family: inherit;
+      outline: none; transition: border-color 0.2s; background: #fafafa; color: #2d2d2d;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: #ff6b35; background: white;
+    }
+    .field textarea { resize: vertical; min-height: 80px; }
+
+    /* ─── Guide Box ─── */
+    .guide-box {
+      background: linear-gradient(135deg, #fff8f0, #fff3e8);
+      border: 1.5px solid #ffd0b0; border-radius: 14px; padding: 16px; margin-bottom: 18px;
+    }
+    .guide-box-title {
+      font-weight: 700; font-size: 0.88rem; color: #d84315;
+      margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+    }
+    .guide-platforms { display: flex; flex-direction: column; gap: 12px; }
+    .guide-platform {
+      background: white; border-radius: 10px; padding: 12px; border: 1px solid #ffe0cc;
+    }
+    .guide-platform-name {
+      font-weight: 700; font-size: 0.82rem; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .guide-platform-name.shopee { color: #ee4d2d; }
+    .guide-platform-name.lazada { color: #0f146d; }
+    .guide-platform-name.tiktok { color: #111; }
+    .guide-platform-name.pos    { color: #2e7d32; }
+    .guide-img {
+      width: 100%; border-radius: 8px; border: 1px solid #eee;
+      display: block; background: #f5f5f5; min-height: 100px; object-fit: contain;
+    }
+    .guide-steps { margin-top: 8px; padding-left: 0; list-style: none; }
+    .guide-steps li {
+      font-size: 0.78rem; color: #555; padding: 2px 0; display: flex; gap: 6px;
+    }
+    .guide-steps li::before { content: '→'; color: #ff6b35; flex-shrink: 0; }
+    .guide-logo-img {
+      display: block; width: 100%; max-width: 100%; margin: 0 auto;
+      object-fit: contain; border-radius: 10px;
+    }
+    .guide-logo-img + .guide-logo-img { margin-top: 16px; }
+
+    /* ─── Store note ─── */
+    .store-note {
+      background: #e8f5e9; border: 1.5px solid #a5d6a7; border-radius: 10px;
+      padding: 11px 14px; font-size: 0.82rem; color: #2e7d32; margin-bottom: 18px;
+      display: flex; gap: 8px; align-items: flex-start;
+    }
+    .store-note-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+    /* ─── Order tabs ─── */
+    .order-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .order-tab {
+      padding: 5px 12px; border-radius: 20px; font-size: 0.76rem; font-weight: 700;
+      cursor: pointer; border: 1.5px solid transparent; transition: all 0.2s;
+    }
+    .order-tab.shopee  { background: #fff0ee; color: #ee4d2d; border-color: #ee4d2d; }
+    .order-tab.lazada  { background: #eef0ff; color: #0f146d; border-color: #0f146d; }
+    .order-tab.tiktok  { background: #f5f5f5; color: #111;    border-color: #aaa; }
+    .order-tab.homepro { background: #e8f5e9; color: #2e7d32; border-color: #2e7d32; }
+    .order-tab.makropro{ background: #e8f5e9; color: #1b5e20; border-color: #1b5e20; }
+    .order-tab.receipt { background: #e8f5e9; color: #2e7d32; border-color: #43a047; }
+    .order-tab.active  { opacity: 1; }
+    .order-tab:not(.active) { opacity: 0.45; }
+
+    /* ─── Pet checkboxes — COMPACT, text-only ─── */
+    .pet-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+    .pet-option {
+      display: flex; cursor: pointer;
+    }
+    .pet-option input[type="checkbox"] { display: none; }
+    .pet-box {
+      width: 100%; padding: 7px 4px;
+      background: #f5f5f5; border: 1.5px solid #e0e0e0; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .pet-box .pet-name  { font-size: 0.72rem; font-weight: 600; color: #555; text-align: center; }
+    .pet-option input:checked + .pet-box { background: #fff8f0; border-color: #ff6b35; }
+    .pet-option input:checked + .pet-box .pet-name { color: #ff6b35; }
+
+    /* ─── Pet other input ─── */
+    .pet-other-input {
+      margin-top: 10px;
+      display: none;
+    }
+    .pet-other-input.visible { display: block; }
+    .pet-other-input input {
+      width: 100%; border: 1.5px solid #e0e0e0; border-radius: 10px;
+      padding: 11px 13px; font-size: 0.9rem; font-family: inherit;
+      outline: none; transition: border-color 0.2s; background: #fafafa; color: #2d2d2d;
+    }
+    .pet-other-input input:focus { border-color: #ff6b35; background: white; }
+
+    /* ─── Submit ─── */
+    .submit-btn {
+      width: 100%; background: linear-gradient(135deg, #ff6b35, #ff4500);
+      color: white; border: none; border-radius: 14px; padding: 16px;
+      font-size: 1.05rem; font-weight: 700; cursor: pointer; margin-top: 8px;
+      box-shadow: 0 4px 14px rgba(255,107,53,0.35); transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .submit-btn:active { transform: scale(0.98); box-shadow: none; }
+    .privacy-note {
+      text-align: center; font-size: 0.75rem; color: #999; margin-top: 14px; line-height: 1.6;
+    }
+
+    /* ─── Success ─── */
+    .success-screen { display: none; text-align: center; padding: 50px 24px; }
+    .success-screen.visible { display: block; }
+    .success-icon { font-size: 4rem; }
+    .success-title { font-size: 1.4rem; font-weight: 800; margin: 12px 0 8px; color: #2d2d2d; }
+    .success-desc { color: #666; font-size: 0.9rem; line-height: 1.6; }
+    .success-badge {
+      display: inline-block; margin-top: 18px; background: #e8f5e9; color: #2e7d32;
+      padding: 8px 20px; border-radius: 20px; font-weight: 700; font-size: 0.85rem;
+    }
+
+    /* ─── Errors ─── */
+    .field-error { font-size: 0.75rem; color: #e53935; margin-top: 4px; display: none; }
+    .field.has-error input,
+    .field.has-error select,
+    .field.has-error textarea { border-color: #e53935; }
+    .field.has-error .field-error { display: block; }
+    .divider { height: 1px; background: #f0f0f0; margin: 20px 0; }
+
+    /* ─── Terms Modal ─── */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.55); z-index: 9999;
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    .modal-box {
+      background: #fff; border-radius: 20px 20px 0 0;
+      width: 100%; max-width: 480px; max-height: 85vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+    }
+    .modal-header {
+      padding: 16px 20px 14px; font-weight: 700; font-size: 1rem; color: #2d2d2d;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex; justify-content: space-between; align-items: center;
+      flex-shrink: 0;
+    }
+    .modal-close {
+      background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #aaa; padding: 4px 8px;
+    }
+    .modal-body {
+      flex: 1; overflow-y: auto; padding: 16px 20px;
+      font-size: 0.8rem; line-height: 1.85; color: #444;
+      -webkit-overflow-scrolling: touch;
+    }
+    .modal-body h3 { font-size: 0.87rem; color: #ff6b35; margin: 14px 0 4px; font-weight: 700; }
+    .modal-body p  { margin: 0 0 7px; }
+    .modal-body ul { margin: 4px 0 8px; padding-left: 18px; }
+    .modal-body ul li { margin-bottom: 4px; }
+    .modal-footer {
+      padding: 12px 20px 20px; border-top: 1px solid #f0f0f0; flex-shrink: 0;
+    }
+    .modal-scroll-hint {
+      text-align: center; font-size: 0.72rem; color: #bbb; margin-bottom: 8px;
+    }
+    .accept-terms-btn {
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.3s;
+    }
+    .accept-terms-btn:disabled { background: #ddd; color: #999; cursor: not-allowed; }
+    .accept-terms-btn:not(:disabled) {
+      background: linear-gradient(135deg, #ff6b35, #ff4500); color: #fff;
+      box-shadow: 0 4px 14px rgba(255,107,53,0.3);
+    }
+    /* ─── Terms Checkbox Row ─── */
+    .terms-check-row {
+      display: flex; align-items: flex-start; gap: 12px; cursor: pointer;
+      padding: 13px 14px; background: #fff8f0;
+      border-radius: 12px; border: 1.5px solid #ffd5b8; transition: border-color 0.2s;
+    }
+    .terms-check-row:hover { border-color: #ff6b35; }
+    .terms-check-row.accepted { background: #fff3e8; border-color: #ff6b35; }
+    .terms-checkbox-box {
+      width: 22px; height: 22px; border: 2px solid #ff6b35; border-radius: 5px;
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: #fff; font-size: 0.85rem; font-weight: 900; color: #fff;
+      margin-top: 2px; transition: background 0.2s;
+    }
+    .terms-checkbox-box.checked { background: #ff6b35; }
+    .terms-check-label { font-size: 0.84rem; color: #444; line-height: 1.5; }
+
+    /* ─── Mobile tuning ─── */
+    @media (max-width: 480px) {
+      .header { padding: 22px 14px 18px; }
+      .header-logo { font-size: 2.1rem; }
+      .header-logo-circle { width: 11rem; height: 11rem; }
+      .header-logo-img { height: 10rem; }
+      .user-card { margin: 14px 10px 0; padding: 12px 14px; }
+      .form-wrap { margin: 12px 10px 24px; padding: 18px 12px; border-radius: 14px; }
+      .section-title { font-size: 0.78rem; margin-bottom: 14px; }
+      .guide-box { padding: 10px; border-radius: 12px; margin-bottom: 14px; }
+      .guide-box-title { font-size: 0.92rem; }
+      .guide-logo-img { border-radius: 8px; }
+    }
+    @media (max-width: 360px) {
+      .form-wrap { margin: 10px 6px 20px; padding: 14px 8px; }
+      .guide-box { padding: 6px; }
+      .header-logo-circle { width: 9.5rem; height: 9.5rem; }
+      .header-logo-img { height: 8.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-logo"><div class="header-logo-circle"><img class="header-logo-img" src="guide-img-1.png" alt="HostTail logo" /></div></div>
+  <div class="header-sub">PET VARIETY STORE</div>
+  <div class="header-title">🛡️ ลงทะเบียนรับประกันสินค้า</div>
+</div>
+
+<!-- LINE User Card -->
+<div class="user-card">
+  <div class="user-avatar">👤</div>
+  <div class="user-info">
+    <div class="user-name" id="lineName">กำลังโหลด...</div>
+    <div class="user-line">LINE User ID: <span id="lineUid">—</span></div>
+  </div>
+  <div class="line-badge">LINE ✓</div>
+</div>
+
+<!-- Main form -->
+<div class="form-wrap" id="mainForm">
+
+  <!-- Section 1: Personal -->
+  <div class="section-title">👤 ข้อมูลส่วนตัว</div>
+
+  <div class="field">
+    <label>LINE User ID <span style="font-size:0.75rem;color:#999">(อัตโนมัติ)</span></label>
+    <input type="text" id="fLineUid" readonly placeholder="กำลังโหลด..." style="background:#f0f0f0;color:#888;" />
+  </div>
+  <div class="field">
+    <label>LINE Display Name <span style="font-size:0.75rem;color:#999">(อัตโนมัติ)</span></label>
+    <input type="text" id="fLineName" readonly placeholder="กำลังโหลด..." style="background:#f0f0f0;color:#888;" />
+  </div>
+  <div class="field" id="field-phone">
+    <label>เบอร์โทรศัพท์ <span class="req">*</span></label>
+    <input type="tel" id="fPhone" placeholder="เช่น 081-234-5678" />
+    <div class="field-error">กรุณากรอกเบอร์โทรศัพท์</div>
+  </div>
+  <div class="field" id="field-fullname">
+    <label>ชื่อ-นามสกุล <span class="req">*</span></label>
+    <input type="text" id="fFullname" placeholder="ชื่อ นามสกุล" />
+    <div class="field-error">กรุณากรอกชื่อ-นามสกุล</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Section 2: Order -->
+  <div class="section-title">📦 วิธีการค้นหาหมายเลขคำสั่งซื้อ / เลขที่ใบเสร็จ</div>
+
+  <!-- Guide box -->
+  <div class="guide-box">
+    <img class="guide-logo-img" src="guide-img-2.jpg" alt="วิธีค้นหาเลขคำสั่งซื้อ" />
+    <img class="guide-logo-img" src="guide-img-3.jpg" alt="วิธีค้นหาเลขที่ใบเสร็จ HomePro" />
+  </div>
+
+  <!-- Store note -->
+  <div class="store-note">
+    <div class="store-note-icon">🏪</div>
+    <div>
+      <strong>ซื้อที่ร้านค้าอื่นๆ ที่ไม่มีในตัวเลือก?</strong><br/>
+      กรุณากรอก <strong>"หมายเลขคำสั่งซื้อ/เลขที่ใบเสร็จ"</strong> โดยเลือกแท็บ 🏪 ใบเสร็จ และแนบรูปใบเสร็จด้วยครับ/ค่ะ
+    </div>
+  </div>
+
+  <!-- Order ID with tabs -->
+  <div class="field" id="field-orderid">
+    <label id="orderIdLabel">หมายเลขคำสั่งซื้อ/เลขที่ใบเสร็จ <span class="req">*</span></label>
+    <div class="order-tabs">
+      <span class="order-tab shopee active" onclick="setOrderType('shopee')">🟠 Shopee</span>
+      <span class="order-tab lazada" onclick="setOrderType('lazada')">🔵 Lazada</span>
+      <span class="order-tab tiktok" onclick="setOrderType('tiktok')">⚫ TikTok</span>
+      <span class="order-tab homepro" onclick="setOrderType('homepro')">🏪 HomePro</span>
+      <span class="order-tab makropro" onclick="setOrderType('makropro')">🏪 Makro Pro</span>
+      <span class="order-tab receipt" onclick="setOrderType('receipt')">🧾 ใบเสร็จ</span>
+    </div>
+    <input type="text" id="fOrderId" placeholder="กรอกหมายเลขคำสั่งซื้อ" />
+    <div class="field-error">กรุณากรอกหมายเลขคำสั่งซื้อหรือเลขที่ใบเสร็จ</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Section 3: Pet — COMPACT 4-col grid -->
+  <div class="section-title">🐾 ข้อมูลสัตว์เลี้ยง</div>
+
+  <div class="field" id="field-pet">
+    <label>ชนิดสัตว์เลี้ยง <span class="req">*</span> <span style="font-size:0.73rem;color:#888;font-weight:400">(เลือกได้หลายชนิด)</span></label>
+    <div class="pet-grid">
+      <label class="pet-option"><input type="checkbox" name="pet" value="dog" /><div class="pet-box"><span class="pet-name">สุนัข</span></div></label>
+      <label class="pet-option"><input type="checkbox" name="pet" value="cat" /><div class="pet-box"><span class="pet-name">แมว</span></div></label>
+      <label class="pet-option"><input type="checkbox" name="pet" value="rabbit" /><div class="pet-box"><span class="pet-name">กระต่าย</span></div></label>
+      <label class="pet-option"><input type="checkbox" name="pet" value="bird" /><div class="pet-box"><span class="pet-name">นก</span></div></label>
+      <label class="pet-option"><input type="checkbox" name="pet" value="reptile" /><div class="pet-box"><span class="pet-name">เลื้อยคลาน</span></div></label>
+      <label class="pet-option"><input type="checkbox" name="pet" value="fish" /><div class="pet-box"><span class="pet-name">ปลา</span></div></label>
+      <label class="pet-option"><input type="checkbox" name="pet" value="hamster" /><div class="pet-box"><span class="pet-name">แฮมสเตอร์</span></div></label>
+      <label class="pet-option"><input type="checkbox" name="pet" value="turtle" /><div class="pet-box"><span class="pet-name">เต่า</span></div></label>
+      <label class="pet-option"><input type="checkbox" name="pet" value="other" id="petOtherCheckbox" /><div class="pet-box"><span class="pet-name">อื่นๆ</span></div></label>
+    </div>
+    <div class="pet-other-input" id="petOtherInputWrap">
+      <input type="text" id="fPetOther" placeholder="ระบุชนิดสัตว์เลี้ยง..." />
+    </div>
+    <div class="field-error" id="petError">กรุณาเลือกชนิดสัตว์เลี้ยงอย่างน้อย 1 ชนิด</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Section 4: Additional -->
+  <div class="section-title">📍 ข้อมูลเพิ่มเติม</div>
+
+  <div class="field" id="field-province">
+    <label>จังหวัด <span class="req">*</span></label>
+    <select id="fProvince">
+      <option value="">— เลือกจังหวัด —</option>
+      <option>กรุงเทพมหานคร</option><option>กระบี่</option><option>กาญจนบุรี</option>
+      <option>กาฬสินธุ์</option><option>กำแพงเพชร</option><option>ขอนแก่น</option>
+      <option>จันทบุรี</option><option>ฉะเชิงเทรา</option><option>ชลบุรี</option>
+      <option>ชัยนาท</option><option>ชัยภูมิ</option><option>ชุมพร</option>
+      <option>เชียงราย</option><option>เชียงใหม่</option><option>ตรัง</option>
+      <option>ตราด</option><option>ตาก</option><option>นครนายก</option>
+      <option>นครปฐม</option><option>นครพนม</option><option>นครราชสีมา</option>
+      <option>นครศรีธรรมราช</option><option>นครสวรรค์</option><option>นนทบุรี</option>
+      <option>นราธิวาส</option><option>น่าน</option><option>บึงกาฬ</option>
+      <option>บุรีรัมย์</option><option>ปทุมธานี</option><option>ประจวบคีรีขันธ์</option>
+      <option>ปราจีนบุรี</option><option>ปัตตานี</option><option>พระนครศรีอยุธยา</option>
+      <option>พะเยา</option><option>พังงา</option><option>พัทลุง</option>
+      <option>พิจิตร</option><option>พิษณุโลก</option><option>เพชรบุรี</option>
+      <option>เพชรบูรณ์</option><option>แพร่</option><option>ภูเก็ต</option>
+      <option>มหาสารคาม</option><option>มุกดาหาร</option><option>แม่ฮ่องสอน</option>
+      <option>ยโสธร</option><option>ยะลา</option><option>ร้อยเอ็ด</option>
+      <option>ระนอง</option><option>ระยอง</option><option>ราชบุรี</option>
+      <option>ลพบุรี</option><option>ลำปาง</option><option>ลำพูน</option>
+      <option>เลย</option><option>ศรีสะเกษ</option><option>สกลนคร</option>
+      <option>สงขลา</option><option>สตูล</option><option>สมุทรปราการ</option>
+      <option>สมุทรสงคราม</option><option>สมุทรสาคร</option><option>สระแก้ว</option>
+      <option>สระบุรี</option><option>สิงห์บุรี</option><option>สุโขทัย</option>
+      <option>สุพรรณบุรี</option><option>สุราษฎร์ธานี</option><option>สุรินทร์</option>
+      <option>หนองคาย</option><option>หนองบัวลำภู</option><option>อ่างทอง</option>
+      <option>อำนาจเจริญ</option><option>อุดรธานี</option><option>อุตรดิตถ์</option>
+      <option>อุทัยธานี</option><option>อุบลราชธานี</option>
+    </select>
+    <div class="field-error">กรุณาเลือกจังหวัด</div>
+  </div>
+
+  <div class="field">
+    <label>💬 หมายเหตุ / ข้อความถึงร้าน <span style="font-size:0.75rem;color:#888;font-weight:400">(ไม่บังคับ)</span></label>
+    <textarea id="fNote" placeholder="ข้อความเพิ่มเติม หรือปัญหาที่พบ..."></textarea>
+  </div>
+
+  <!-- ✅ ยอมรับเงื่อนไขการรับประกัน -->
+  <div class="field" id="field-terms" style="margin-top:16px;">
+    <div class="terms-check-row" id="termsRow" onclick="openTermsModal()">
+      <div class="terms-checkbox-box" id="termsCheckboxBox"></div>
+      <div class="terms-check-label">
+        ฉันได้อ่านและยอมรับ<br/>
+        <span style="color:#ff6b35;font-weight:700;text-decoration:underline;">เงื่อนไขการรับประกันสินค้า (รับประกัน 12 เดือน)</span>
+        <span class="req"> *</span>
+      </div>
+    </div>
+    <div class="field-error" id="termsError">กรุณายอมรับเงื่อนไขการรับประกันสินค้า</div>
+  </div>
+
+  <button class="submit-btn" onclick="submitForm()">🐾 ลงทะเบียนรับประกันสินค้า</button>
+  <div class="privacy-note">
+    ข้อมูลของคุณจะถูกเก็บเป็นความลับ<br/>และใช้เพื่อให้บริการลูกค้าเท่านั้น
+  </div>
+</div>
+
+<!-- Success screen -->
+<div class="form-wrap success-screen" id="successScreen">
+  <div class="success-icon">🎉</div>
+  <div class="success-title">ลงทะเบียนรับประกันสำเร็จ!</div>
+  <div class="success-desc">
+    ยินดีต้อนรับสู่ครอบครัว Hosttail 🐾<br/>
+    คุณจะได้รับการรับประกันสินค้า<br/>และสิทธิพิเศษสมาชิกจากทีมงาน
+  </div>
+  <div class="success-badge">✅ บันทึกข้อมูลแล้ว</div>
+  <br/><br/>
+  <div style="font-size:0.82rem;color:#888;">ปิดหน้านี้แล้วกลับไปสนทนาใน LINE ได้เลย</div>
+</div>
+
+<script>
+  /* ─────────────────────────────────────────
+     ⚙️  CONFIG — แก้ไขค่านี้เท่านั้น
+  ───────────────────────────────────────── */
+  const CONFIG = {
+    LIFF_ID: "2010446478-ZHkvLlTS",
+    GAS_URL: "https://script.google.com/macros/s/AKfycbx2JilAwEvKaOpKvbUxiqCdbgmEds3vOiz-7hpoXXtds4uTiVGZuClKKA2vpcTn9iwSIA/exec",
+  };
+
+  let lineProfile       = null;
+  let receiptBase64     = [];
+  let isReturningMember = false;
+  let termsAccepted     = false;
+
+  /* ─── Terms Modal ─── */
+  function openTermsModal() {
+    if (termsAccepted) {
+      /* ถ้ายอมรับแล้ว — กดอีกครั้ง = ยกเลิก */
+      termsAccepted = false;
+      document.getElementById('termsCheckboxBox').classList.remove('checked');
+      document.getElementById('termsCheckboxBox').textContent = '';
+      document.getElementById('termsRow').classList.remove('accepted');
+      return;
+    }
+    const overlay = document.getElementById('termsModal');
+    overlay.style.display = 'flex';
+    const body = document.getElementById('termsModalBody');
+    body.scrollTop = 0;
+    const btn = document.getElementById('acceptTermsBtn');
+    btn.disabled = true;
+    btn.textContent = '⬇ เลื่อนอ่านจนสุดแล้วกดยอมรับ';
+  }
+
+  function closeTermsModal() {
+    document.getElementById('termsModal').style.display = 'none';
+  }
+
+  function checkTermsScroll() {
+    const body = document.getElementById('termsModalBody');
+    const btn  = document.getElementById('acceptTermsBtn');
+    const hint = document.getElementById('scrollHint');
+    if (body.scrollHeight - body.scrollTop - body.clientHeight < 40) {
+      btn.disabled = false;
+      btn.textContent = '✅ ยอมรับเงื่อนไขการรับประกัน';
+      if (hint) hint.style.display = 'none';
+    }
+  }
+
+  function acceptTerms() {
+    termsAccepted = true;
+    const box = document.getElementById('termsCheckboxBox');
+    box.classList.add('checked');
+    box.textContent = '✓';
+    document.getElementById('termsRow').classList.add('accepted');
+    /* ล้าง error ถ้ามี */
+    document.getElementById('field-terms').classList.remove('has-error');
+    document.getElementById('termsError').style.display = 'none';
+    closeTermsModal();
+  }
+
+  /* ── Order type tabs ── */
+  let currentOrderType = 'shopee';
+  const orderLabels = {
+    shopee:   'หมายเลขคำสั่งซื้อ (Shopee)',
+    lazada:   'หมายเลขคำสั่งซื้อ (Lazada)',
+    tiktok:   'หมายเลขคำสั่งซื้อ (TikTok)',
+    homepro:  'เลขที่ใบเสร็จ (HomePro)',
+    makropro: 'เลขที่ใบเสร็จ (Makro Pro)',
+    receipt:  'เลขที่ใบเสร็จ',
+  };
+  const orderPlaceholders = {
+    shopee:   'เช่น 250612XXXXXXXXX',
+    lazada:   'เช่น #250601XXXXXXX',
+    tiktok:   'เช่น 58XXXXXXXXXXXXXX',
+    homepro:  'เช่น INV-2025-00123',
+    makropro: 'เช่น INV-2025-00123',
+    receipt:  'เช่น INV-2025-00123',
+  };
+  function setOrderType(type) {
+    currentOrderType = type;
+    document.querySelectorAll('.order-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('.order-tab.' + type).classList.add('active');
+    document.getElementById('orderIdLabel').innerHTML = orderLabels[type] + ' <span class="req">*</span>';
+    document.getElementById('fOrderId').placeholder = orderPlaceholders[type];
+  }
+
+  /* ── Helpers ── */
+  function setError(fieldId, show) {
+    const el = document.getElementById(fieldId);
+    if (el) el.classList.toggle('has-error', show);
+  }
+  function val(id) { return (document.getElementById(id)?.value || '').trim(); }
+
+  /* ── LINE LIFF Init ── */
+  window.addEventListener('DOMContentLoaded', async () => {
+    try {
+      await liff.init({ liffId: CONFIG.LIFF_ID });
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+
+      lineProfile = await liff.getProfile();
+      document.getElementById('lineName').textContent = lineProfile.displayName;
+      document.getElementById('lineUid').textContent  = lineProfile.userId;
+      document.getElementById('fLineName').value      = lineProfile.displayName;
+      document.getElementById('fLineUid').value       = lineProfile.userId;
+
+      const avatar = document.querySelector('.user-avatar');
+      if (avatar && lineProfile.pictureUrl) {
+        avatar.innerHTML = `<img src="${lineProfile.pictureUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" />`;
+      }
+      await checkExisting(lineProfile.userId);
+    } catch (err) {
+      console.error('LIFF init error:', err);
+      document.getElementById('lineName').textContent = 'กรุณาเปิดใน LINE';
+      document.getElementById('lineUid').textContent  = '—';
+    }
+  });
+
+  /* ── Check existing member ── */
+  async function checkExisting(uid) {
+    try {
+      const res  = await fetch(`${CONFIG.GAS_URL}?action=check&uid=${uid}`);
+      const data = await res.json();
+      if (data.exists && data.data) {
+        isReturningMember = true;
+
+        /* ── Lock helper ── */
+        function lockInput(el) {
+          el.readOnly = true;
+          el.style.cssText = 'background:#f5f5f5;color:#555;cursor:not-allowed;border-color:#ddd;';
+        }
+
+        /* ── เบอร์โทร ── */
+        if (data.data.phone) {
+          const el = document.getElementById('fPhone');
+          el.value = data.data.phone; lockInput(el);
+        }
+        /* ── ชื่อ-นามสกุล ── */
+        if (data.data.full_name) {
+          const el = document.getElementById('fFullname');
+          el.value = data.data.full_name; lockInput(el);
+        }
+        /* ── จังหวัด ── */
+        if (data.data.province) {
+          const el = document.getElementById('fProvince');
+          el.value = data.data.province;
+          el.disabled = true;
+          el.style.cssText = 'background:#f5f5f5;color:#555;cursor:not-allowed;border-color:#ddd;';
+        }
+
+        /* ── สัตว์เลี้ยง: pre-check & lock ── */
+        if (data.data.pet_type) {
+          const stored = String(data.data.pet_type);
+          stored.split(', ').forEach(p => {
+            const t  = p.trim();
+            const cb = document.querySelector(`input[name="pet"][value="${t}"]`);
+            if (cb) cb.checked = true;
+            if (t.startsWith('อื่นๆ')) {
+              const otherCb = document.getElementById('petOtherCheckbox');
+              if (otherCb) otherCb.checked = true;
+              const m = t.match(/\((.+)\)/);
+              if (m) {
+                const oi = document.getElementById('fPetOther');
+                if (oi) { oi.value = m[1]; lockInput(oi); }
+                document.getElementById('petOtherInputWrap')?.classList.add('visible');
+              }
+            }
+          });
+          /* ล็อค visual ทุก checkbox */
+          document.querySelectorAll('input[name="pet"]').forEach(cb => {
+            cb.disabled = true;
+            const box = cb.closest('label')?.querySelector('.pet-box');
+            if (box) { box.style.opacity = '0.55'; box.style.cursor = 'not-allowed'; }
+          });
+        }
+
+        /* ── Badge แจ้งสมาชิกเดิม ── */
+        const form = document.getElementById('mainForm');
+        if (form) {
+          const badge = document.createElement('div');
+          badge.style.cssText = 'background:#e8f4fd;border:1.5px solid #1976D2;border-radius:10px;padding:12px 16px;font-size:0.85rem;color:#1565C0;margin-bottom:16px;font-weight:700;line-height:1.5;';
+          badge.innerHTML = '✅ ยินดีต้อนรับกลับมา!<br/><span style="font-weight:400;font-size:0.8rem;">ข้อมูลส่วนตัวถูกบันทึกแล้ว — กรอกแค่ <strong>หมายเลขคำสั่งซื้อ</strong> ใหม่แล้วกดปุ่มด้านล่าง</span>';
+          form.insertBefore(badge, form.firstChild);
+        }
+
+        /* ── ปุ่ม ── */
+        const btn = document.querySelector('.submit-btn');
+        if (btn) btn.textContent = '📦 บันทึกคำสั่งซื้อใหม่';
+      }
+    } catch (e) { /* ข้ามถ้า check ไม่ได้ */ }
+  }
+
+  /* ── Submit → POST to GAS ── */
+  async function submitForm() {
+    let valid = true;
+
+    /* สมาชิกใหม่: validate ทุกฟิลด์ / สมาชิกเดิม: validate แค่เลขคำสั่งซื้อ */
+    if (!isReturningMember) {
+      if (!val('fPhone'))    { setError('field-phone', true);    valid = false; } else setError('field-phone', false);
+      if (!val('fFullname')) { setError('field-fullname', true); valid = false; } else setError('field-fullname', false);
+    } else {
+      setError('field-phone', false);
+      setError('field-fullname', false);
+    }
+
+    if (!val('fOrderId'))  { setError('field-orderid', true);  valid = false; } else setError('field-orderid', false);
+
+    const checkedPets = document.querySelectorAll('input[name="pet"]:checked');
+    if (!isReturningMember) {
+      const otherCb     = document.getElementById('petOtherCheckbox');
+      const otherFilled = !otherCb?.checked || (document.getElementById('fPetOther')?.value || '').trim() !== '';
+      if (checkedPets.length === 0 || !otherFilled) {
+        document.getElementById('field-pet').classList.add('has-error');
+        document.getElementById('petError').style.display = 'block';
+        document.getElementById('petError').textContent = checkedPets.length === 0
+          ? 'กรุณาเลือกชนิดสัตว์เลี้ยงอย่างน้อย 1 ชนิด'
+          : 'กรุณาระบุชนิดสัตว์เลี้ยง (อื่นๆ)';
+        valid = false;
+      } else {
+        document.getElementById('field-pet').classList.remove('has-error');
+        document.getElementById('petError').style.display = 'none';
+      }
+      if (!val('fProvince')) { setError('field-province', true); valid = false; } else setError('field-province', false);
+    } else {
+      document.getElementById('field-pet').classList.remove('has-error');
+      document.getElementById('petError').style.display = 'none';
+      setError('field-province', false);
+    }
+
+    /* ─ terms ─ */
+    if (!termsAccepted) {
+      document.getElementById('field-terms').classList.add('has-error');
+      document.getElementById('termsError').style.display = 'block';
+      valid = false;
+    } else {
+      document.getElementById('field-terms').classList.remove('has-error');
+      document.getElementById('termsError').style.display = 'none';
+    }
+
+    if (!valid) {
+      const firstErr = document.querySelector('.has-error');
+      if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const btn = document.querySelector('.submit-btn');
+    btn.disabled    = true;
+    btn.textContent = '⏳ กำลังบันทึก...';
+
+    const petStr  = Array.from(checkedPets).map(c => {
+      if (c.value === 'other') {
+        const ot = (document.getElementById('fPetOther')?.value || '').trim();
+        return ot ? 'อื่นๆ (' + ot + ')' : 'อื่นๆ';
+      }
+      return c.value;
+    }).join(', ');
+    const orderId = val('fOrderId');
+
+    // เวลาไทย UTC+7 รูปแบบ "YYYY-MM-DD HH:mm:ss"
+    const thaiNow = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+
+    // ใช้ composite key (UID_orderID) เพื่อให้แต่ละ order ขึ้น row ใหม่เสมอ
+    const realUid   = lineProfile ? lineProfile.userId : val('fLineUid');
+    const submitKey = realUid + '_' + (orderId || Date.now());
+
+    const payload = {
+      action:       'register_warranty',
+      full_name:    val('fFullname'),
+      order_type:   currentOrderType,
+      order_id:     orderId,
+      pet_types:    petStr,
+      line_uid:     submitKey,       // composite key → สร้าง row ใหม่ทุกครั้ง
+      line_uid_real: realUid,        // real LINE UID สำหรับ notification
+      line_name:    lineProfile ? lineProfile.displayName : val('fLineName'),
+      line_picture: lineProfile ? (lineProfile.pictureUrl || '') : '',
+      phone:        val('fPhone'),
+      pet_type:     petStr,
+      province:     val('fProvince'),
+      note:         val('fNote'),
+      timestamp:    thaiNow,
+      order_shopee: currentOrderType === 'shopee'                               ? orderId : '',
+      order_lazada: currentOrderType === 'lazada'                               ? orderId : '',
+      order_tiktok: currentOrderType === 'tiktok'                               ? orderId : '',
+      order_pos:    ['homepro','makropro','receipt'].includes(currentOrderType)  ? orderId : '',
+    };
+
+    try {
+      const res  = await fetch(CONFIG.GAS_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'text/plain' },   // ← CORS fix for iOS Safari
+        body:    JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        throw new Error('เซิร์ฟเวอร์ตอบกลับ HTTP ' + res.status + ' — กรุณาติดต่อร้านค้า');
+      }
+      let data;
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        throw new Error('เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง — กรุณาติดต่อร้านค้าที่ LINE @hosttail');
+      }
+      if (data.status === 'ok') {
+        document.getElementById('mainForm').style.display = 'none';
+        document.getElementById('successScreen').classList.add('visible');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => { try { if (liff.isInClient()) liff.closeWindow(); } catch(e){} }, 3000);
+      } else {
+        throw new Error(data.message || 'เกิดข้อผิดพลาด');
+      }
+    } catch (err) {
+      alert('ไม่สามารถบันทึกได้\n\n' + err.message);
+      btn.disabled    = false;
+      btn.textContent = isReturningMember ? '📦 บันทึกคำสั่งซื้อใหม่' : '🐾 ลงทะเบียนรับประกันสินค้า';
+    }
+  }
+
+  /* ── Pet "อื่นๆ" toggle ── */
+  (function(){
+    var cb = document.getElementById('petOtherCheckbox');
+    if (!cb) return;
+    cb.addEventListener('change', function() {
+      var wrap = document.getElementById('petOtherInputWrap');
+      wrap.classList.toggle('visible', this.checked);
+      if (this.checked) document.getElementById('fPetOther').focus();
+      else              document.getElementById('fPetOther').value = '';
+    });
+  })();
+</script>
+
+<!-- ─── Terms & Conditions Modal ─── -->
+<div id="termsModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeTermsModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span>📋 เงื่อนไขการรับประกันสินค้า</span>
+      <button class="modal-close" onclick="closeTermsModal()">✕</button>
+    </div>
+    <div class="modal-body" id="termsModalBody" onscroll="checkTermsScroll()">
+
+      <h3>เงื่อนไขการรับประกันสินค้า (รับประกัน 12 เดือน)</h3>
+
+      <h3>1. เงื่อนไขการรับประกันสินค้า 12 เดือน</h3>
+      <p><strong>1.1 สินค้าหมวด คอกกั้นสัตว์เลี้ยง / เฟอร์นิเจอร์สัตว์เลี้ยง</strong></p>
+      <p>1.1.1 7 วันหลังจากวันที่ได้รับสินค้า หากตรวจสอบแล้วพบว่าความเสียหายเกิดจากความบกพร่องในการผลิต หรือผิดพลาดจากโรงงานผู้ผลิต บริษัทฯ จะดำเนินการเปลี่ยนสินค้าใหม่ หรือซ่อมแซม โดยไม่มีค่าใช้จ่าย</p>
+      <p>1.1.2 ระยะเวลาการรับประกันสินค้า : 1–12 เดือน นับจากวันที่ลูกค้าได้รับสินค้า หากตรวจสอบแล้วพบว่าอะไหล่เกิดความเสียหายจากความบกพร่องในการผลิต หรือเกิดจากการใช้งานตามปกติ ภายใต้เงื่อนไขการรับประกัน บริษัทฯ จะดำเนินการเปลี่ยนอะไหล่ให้โดยไม่มีค่าใช้จ่าย ถ้าสินค้าเสียหายทั้งชิ้นไม่สามารถเปลี่ยนอะไหล่ได้จะต้องขึ้นอยู่กับการพิจารณาว่าอยู่ในเงื่อนไขการรับประกันหรือไม่ ให้เป็นดุลยพินิจของบริษัทฯ</p>
+
+      <p><strong>1.2 สินค้าหมวด Smart Product / เครื่องใช้ไฟฟ้า</strong></p>
+      <p>1.2.1 7 วันหลังจากวันที่ได้รับสินค้า หากตรวจสอบแล้วพบว่าความเสียหายเกิดจากความบกพร่องในการผลิต หรือผิดพลาดจากโรงงานผู้ผลิต บริษัทฯ จะดำเนินการซ่อมและเปลี่ยนอะไหล่ให้ฟรี โดยไม่คิดมูลค่าภายในระยะเวลา 7 วัน นับจากวันที่ได้รับสินค้า</p>
+      <p>1.2.2 ระยะเวลาการรับประกันสินค้า : 1–12 เดือน นับจากวันที่ลูกค้าได้รับสินค้า หากสินค้าเกิดความเสียหาย ผิดพลาดที่ระบบตัวเครื่อง เช่น ระบบมีการแจ้งเตือน Error / เปิดไม่ติด / มอเตอร์ไม่ทำงาน / เซนเซอร์ผิดปกติ / ระบบอัตโนมัติไม่ทำงาน / แผงวงจรเสีย / หน้าจอไม่แสดงผล และตรวจสอบแล้วพบว่าความเสียหายเกิดจากความบกพร่องในการผลิต บริษัทฯ จะดำเนินการเปลี่ยนอะไหล่ให้โดยไม่มีค่าใช้จ่าย ถ้าสินค้าเสียหายทั้งชิ้นไม่สามารถเปลี่ยนอะไหล่ได้จะต้องขึ้นอยู่กับการพิจารณาของบริษัทฯ</p>
+
+      <h3>2. การรับประกันนี้ไม่ครอบคลุมกรณีต่อไปนี้</h3>
+      <ul>
+        <li>2.1 ลูกค้าที่ไม่ได้ลงทะเบียน หรือจงใจกรอกข้อมูลเท็จ หรือลงทะเบียนล่าช้าไม่ตรงกับที่ใช้งานจริง ทางบริษัทฯ ขอสงวนสิทธิ์ไม่ประกันสินค้าในทุกกรณี</li>
+        <li>2.2 หากมีร่องรอยการซ่อม ดัดแปลง แก้ไขผลิตภัณฑ์ หรือแกะชิ้นส่วน ทำให้สินค้าเกิดความเสียหาย ทางบริษัทฯ ขอสงวนสิทธิ์ไม่รับเคลมสินค้า</li>
+        <li>2.3 เหตุเกิดจากการใช้สินค้าผิดประเภท การเกิดอุบัติเหตุ ตกกระแทก การขนย้ายที่ไม่ถูกต้อง หรือความประมาทเกี่ยวกับการใช้งานสินค้า และภัยธรรมชาติ ฯลฯ</li>
+        <li>2.4 เหตุเกิดจากการใช้งานผิดวัตถุประสงค์ และไม่ปฏิบัติตามคำแนะนำในคู่มือการใช้งาน หรือวิธีการดูแลสินค้าที่ทางบริษัทฯ แจ้งไว้</li>
+        <li>2.5 สินค้าเสื่อมสภาพตามการใช้งาน สัตว์เลี้ยงกัด แทะ ข่วน ทำให้ชิ้นส่วนเสียหาย หรือการหมดอายุขัยของชิ้นส่วนอะไหล่จากการใช้งานตามปกติ</li>
+        <li>2.6 สินค้าหมวด Smart Product และเครื่องใช้ไฟฟ้า หากความเสียหายเกิดขึ้นจากของเหลว ความชื้น หรือการจัดเก็บในบริเวณที่ไม่เหมาะสม เช่น อุณหภูมิสูงเกินไป ทางบริษัทฯ ขอสงวนสิทธิ์ไม่ประกันสินค้าในทุกกรณี</li>
+        <li>2.7 สินค้าหมวด Smart Product และเครื่องใช้ไฟฟ้า หากเกิดจากระบบไฟฟ้าของทางผู้ซื้อ ฟ้าผ่า กระแสไฟกระชาก ไม่เสถียร การใช้อะแดปเตอร์หรือสายไฟที่ไม่ได้มาตรฐาน ส่งผลให้สินค้าเสียหาย ทางบริษัทฯ ขอสงวนสิทธิ์ไม่ประกันสินค้าในทุกกรณี</li>
+        <li>2.8 อุปกรณ์เสริม หรืออุปกรณ์สิ้นเปลืองที่แถมไปกับตัวสินค้า เช่น ถุงรองขยะ แผ่นกรองกลิ่น ยางซีลตัวเครื่อง อะไหล่ที่เสื่อมสภาพตามการใช้งาน</li>
+      </ul>
+
+      <h3>3. การยกเลิกการรับประกัน</h3>
+      <p>บริษัทฯ จะยกเลิกการรับประกันทันที เมื่อลูกค้าแจ้งข้อมูลการรับประกันที่เป็นเท็จ หรือเมื่อนำอะไหล่ที่ชำรุดกลับมาตรวจสอบแล้วไม่ตรงกับการใช้งานที่ลูกค้าแจ้ง และไม่เข้าเงื่อนไขในการรับประกันสินค้า</p>
+
+      <h3>4. ระยะเวลาการตรวจสอบ</h3>
+      <p>ในกรณีที่มีการเคลมสินค้าเกิดขึ้น บริษัทฯ จะใช้เวลาตรวจสอบสินค้า 7–14 วันทำการ หลังจากได้รับสินค้า สินค้าที่ผ่านการใช้งานแล้ว บริษัทฯ ขอสงวนสิทธิ์ไม่คืนเงินทุกกรณี</p>
+
+      <h3>5. สิทธิ์ของบริษัท</h3>
+      <p>บริษัทฯ ขอสงวนสิทธิ์ในการซ่อม เปลี่ยนอะไหล่ หรือเปลี่ยนสินค้าใหม่ โดยการพิจารณาของบริษัทฯ ถือเป็นที่สิ้นสุด</p>
+
+      <h3>6. การโอนสิทธิ์</h3>
+      <p>การรับประกันสินค้าจะครอบคลุมสิทธิ์เฉพาะกับผู้ที่ลงทะเบียนไว้เท่านั้น ไม่สามารถโอนย้ายสิทธิ์การรับประกันให้ผู้อื่นได้ ถ้ามีการขายสินค้าต่อให้กับผู้อื่นจะไม่รับรองการเคลมสินค้าของเจ้าของมือที่สองในทุกกรณี</p>
+
+      <h3>ขั้นตอนการส่งเคลมสินค้า</h3>
+      <ul>
+        <li>1. ติดต่อยื่นเรื่องการรับประกัน และส่งเคลมสินค้า ผ่านทาง LINE Official Account</li>
+        <li>2. แจ้ง ชื่อ–นามสกุล หรือเบอร์ติดต่อที่ลงทะเบียน</li>
+        <li>3. ส่งรูปสินค้า และวิดีโอสินค้าที่มีอาการเสีย หรือมีปัญหา</li>
+        <li>4. รอเจ้าหน้าที่ตรวจสอบการรับประกันและแจ้งผลการพิจารณาการเคลม เพื่อให้ทางผู้ซื้อจัดส่งสินค้าเข้าตรวจสอบ (หากจำเป็น) เพื่อซ่อม / เปลี่ยนอะไหล่ / เปลี่ยนสินค้า</li>
+        <li>5. ทางบริษัทฯ ใช้ระยะเวลา 7–14 วัน ในการตรวจสอบสินค้าที่ได้รับ เพื่อดำเนินการในขั้นต่อไป</li>
+        <li>6. หลังจากทางบริษัทฯ ดำเนินการเรียบร้อยแล้ว จะดำเนินการส่งสินค้ากลับคืนให้กับผู้ซื้อ</li>
+      </ul>
+
+    </div>
+    <div class="modal-footer">
+      <div class="modal-scroll-hint" id="scrollHint">⬇ เลื่อนลงเพื่ออ่านจนครบ</div>
+      <button id="acceptTermsBtn" class="accept-terms-btn" disabled onclick="acceptTerms()">
+        ⬇ เลื่อนอ่านจนสุดแล้วกดยอมรับ
+      </button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
