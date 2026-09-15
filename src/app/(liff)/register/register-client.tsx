@@ -10,6 +10,7 @@ import {
   type LiffMemberPublic,
 } from '@/lib/liff/client'
 import { RegisterForm } from './register-form'
+import { CheckLegacyMember } from './check-legacy-member'
 import type { ProvinceOption } from './province-select'
 
 type GateState =
@@ -137,6 +138,10 @@ export function RegisterClient({ provinces, termsBody }: Props) {
           </p>
         </div>
       </div>
+
+      {!(member.full_name && member.phone) && (
+        <CheckLegacyMember onMerged={(merged) => setState({ phase: 'ready', member: merged })} />
+      )}
 
       <RegisterForm member={member} provinces={provinces} termsBody={termsBody} />
     </div>
