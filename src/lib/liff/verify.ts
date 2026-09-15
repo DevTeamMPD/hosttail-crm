@@ -45,7 +45,11 @@ export interface LineIdTokenClaims {
  */
 export async function verifyLineIdToken(idToken: string): Promise<LineIdTokenClaims | null> {
   const channelId = process.env.LINE_LOGIN_CHANNEL_ID
-  if (!channelId || !idToken) return null
+  if (!channelId) {
+    console.error('[liff/verify] LINE_LOGIN_CHANNEL_ID is not set in this environment')
+    return null
+  }
+  if (!idToken) return null
 
   let res: Response
   try {
@@ -59,22 +63,47 @@ export async function verifyLineIdToken(idToken: string): Promise<LineIdTokenCla
     console.error('[liff/verify] network error calling LINE verify endpoint', err)
     return null
   }
-  if (!res.ok) return null
+
+  // Read the body once as text regardless of status -- LINE's verify
+  // endpoint returns a JSON error body (e.g. invalid_client / token
+  // expired) on 4xx, and logging it is the only way to tell "wrong
+  // channel id" apart from "expired token" apart from "not our token"
+  // without ever logging the token itself.
+  const rawBody = await res.text()
+  if (!res.ok) {
+    console.error(
+      `[liff/verify] LINE verify endpoint rejected the token: HTTP ${res.status} ${rawBody} (client_id used: ${channelId})`
+    )
+    return null
+  }
 
   let claims: LineIdTokenClaims
   try {
-    claims = (await res.json()) as LineIdTokenClaims
+    claims = JSON.parse(rawBody) as LineIdTokenClaims
   } catch {
+    console.error('[liff/verify] LINE verify endpoint returned a non-JSON 200 body:', rawBody)
     return null
   }
 
   // LINE already validates aud/exp server-side when client_id is supplied,
   // but re-check locally so a future change at LINE's endpoint can never
   // silently widen what this app accepts.
-  if (claims.aud !== channelId) return null
-  if (claims.iss !== LINE_ISSUER) return null
-  if (typeof claims.exp !== 'number' || claims.exp * 1000 <= Date.now()) return null
-  if (!/^U[0-9a-f]{32}$/.test(claims.sub)) return null
+  if (claims.aud !== channelId) {
+    console.error(`[liff/verify] aud mismatch: token aud=${claims.aud}, expected=${channelId}`)
+    return null
+  }
+  if (claims.iss !== LINE_ISSUER) {
+    console.error(`[liff/verify] unexpected iss: ${claims.iss}`)
+    return null
+  }
+  if (typeof claims.exp !== 'number' || claims.exp * 1000 <= Date.now()) {
+    console.error(`[liff/verify] token expired or missing exp: exp=${claims.exp}`)
+    return null
+  }
+  if (!/^U[0-9a-f]{32}$/.test(claims.sub)) {
+    console.error('[liff/verify] sub does not match the expected LINE uid shape')
+    return null
+  }
 
   return claims
 }
