@@ -9,6 +9,8 @@ import {
   bootstrapLiffSession,
   type LiffMemberPublic,
 } from '@/lib/liff/client'
+import { RegisterForm } from './register-form'
+import type { ProvinceOption } from './province-select'
 
 type GateState =
   | { phase: 'checking' }
@@ -16,19 +18,18 @@ type GateState =
   | { phase: 'error'; message: string }
   | { phase: 'ready'; member: LiffMemberPublic }
 
+interface Props {
+  provinces: ProvinceOption[]
+  termsBody: string
+}
+
 /**
- * Proves the fixed auth chain end-to-end:
- *   liff.init() -> isLoggedIn() -> getIDToken() -> POST /api/liff/session
- *   -> server verifies against LINE -> upserts ht_members keyed on the
- *   verified sub claim -> mints our own app token.
- *
- * This is a vertical slice, not the full registration form yet -- it proves
- * the auth path (the part of the legacy page that was actually broken: it
- * trusted a client-supplied userId with no verification at all) before the
- * multi-section form (phone/name, channel tabs, pets, province, receipt
- * upload, terms) is built on top of it.
+ * Auth gate: liff.init() -> isLoggedIn() -> getIDToken() -> POST
+ * /api/liff/session -> server verifies against LINE -> upserts ht_members
+ * keyed on the verified sub claim -> mints our own app token. Renders the
+ * registration form only once that chain has succeeded.
  */
-export function RegisterClient() {
+export function RegisterClient({ provinces, termsBody }: Props) {
   const [state, setState] = useState<GateState>({ phase: 'checking' })
 
   const boot = useCallback(async () => {
@@ -108,10 +109,9 @@ export function RegisterClient() {
   }
 
   const { member } = state
-  const isReturning = Boolean(member.full_name && member.phone)
 
   return (
-    <div className="space-y-4 p-4 pb-10">
+    <div className="space-y-4 p-4 pb-2">
       <div className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm">
         {member.line_picture_url ? (
           <Image
@@ -138,24 +138,7 @@ export function RegisterClient() {
         </div>
       </div>
 
-      {isReturning && (
-        <div
-          className="rounded-xl border px-4 py-3 text-sm"
-          style={{
-            background: 'var(--ht-returning-bg)',
-            borderColor: 'var(--ht-returning)',
-            color: 'var(--ht-returning)',
-          }}
-        >
-          ยินดีต้อนรับกลับมา, {member.full_name} · แต้มสะสม {member.points_balance.toLocaleString()} แต้ม
-        </div>
-      )}
-
-      <div className="rounded-2xl bg-white p-4 shadow-sm">
-        <p className="text-sm text-gray-500">
-          การยืนยันตัวตนกับ LINE สำเร็จแล้ว — ขั้นตอนถัดไป (แบบฟอร์มลงทะเบียน) กำลังอยู่ระหว่างพัฒนา
-        </p>
-      </div>
+      <RegisterForm member={member} provinces={provinces} termsBody={termsBody} />
     </div>
   )
 }

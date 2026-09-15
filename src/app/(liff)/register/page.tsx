@@ -1,12 +1,32 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { RegisterClient } from './register-client'
 
 export const metadata: Metadata = {
   title: 'ลงทะเบียนรับประกันสินค้า — Hosttail',
 }
 
-export default function RegisterPage() {
+// Static per request, not cached across requests -- ht_provinces and the
+// current terms document rarely change, but this is server-only data the
+// customer's browser could never fetch directly anyway (RLS on ht_provinces
+// restricts SELECT to staff; a LIFF customer has no Supabase Auth session).
+export const dynamic = 'force-dynamic'
+
+export default async function RegisterPage() {
+  const supabase = createAdminClient()
+
+  const [{ data: provinces }, { data: termsDoc }] = await Promise.all([
+    supabase.from('ht_provinces').select('code, name_th, region').order('sort_order'),
+    supabase
+      .from('ht_consent_documents')
+      .select('body_md')
+      .eq('kind', 'terms')
+      .eq('locale', 'th')
+      .eq('is_current', true)
+      .maybeSingle(),
+  ])
+
   return (
     <>
       <header
@@ -21,7 +41,7 @@ export default function RegisterPage() {
           🛡️ ลงทะเบียนรับประกันสินค้า
         </span>
       </header>
-      <RegisterClient />
+      <RegisterClient provinces={provinces ?? []} termsBody={termsDoc?.body_md ?? ''} />
     </>
   )
 }
