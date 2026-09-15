@@ -4,35 +4,36 @@ import type { Database } from '@/types/database.types'
 import { normalizePhoneTh } from '@/lib/phone'
 
 type Client = SupabaseClient<Database>
-type Member = Database['public']['Tables']['ht_members']['Row']
 
 export type RelinkResult =
-  | { status: 'merged'; member: Member }
+  | { status: 'queued'; requestId: string }
+  /** An identical claim is already waiting for review -- resubmitting is a no-op. */
+  | { status: 'already_pending'; requestId: string }
   | { status: 'not_found' }
 
 /**
- * Standalone "check for an existing account" flow, separate from
- * submitRegistration() -- lets a legacy member re-link their history by
- * phone alone, without also having to place a new order in the same
- * request. Added because the 72 real legacy members (see ht_merge_members
- * in the 20260915101500 migration for why their old line_uid is dead) may
- * open the new LIFF app just to check their old points/warranty, with
- * nothing new to register right now.
+ * "I was already a member" -- files a claim on a legacy account for an admin
+ * to approve. It does NOT merge anything.
  *
- * ⚠️ SECURITY TRADE-OFF, stated plainly: this treats "knows the phone
- * number on file" as sufficient proof of identity. That is weaker than the
- * order-submission path, where a phone/order match is corroborated by a
- * real purchase in sales_transaction/order_tracking. A phone number is
- * guessable/knowable by someone other than its owner, so this endpoint is
- * rate-limited hard (see the route handler) and every attempt -- matched or
- * not -- should be auditable. What's at stake if abused is limited to
- * warranty coverage visibility and a points balance (not a cash-out path),
- * which is why this was accepted as a v1 trade-off rather than building
- * OTP verification up front. Revisit if it's ever actually abused.
+ * Why it used to merge on the spot and no longer does: the only evidence here
+ * is that the claimant typed a phone number that exists in our records, which
+ * is not proof of ownership -- Thai mobile numbers are guessable and widely
+ * shared. On 2026-09-15 that was demonstrated live in production: a developer
+ * testing the button absorbed a real customer's account, along with (via the
+ * platform-account backfill) that customer's Shopee account, which would have
+ * diverted their future orders. See the 20260915103000 migration.
+ *
+ * What is captured instead is evidence for a human: the legacy row's own
+ * details, plus any corroboration we can find automatically. The strongest
+ * one available is that order_tracking's LINE OA rows carry buyer_account_no
+ * values that ARE line_uids from our provider, so if the claimant's own
+ * verified line_uid appears next to the phone being claimed, that is proof
+ * from LINE rather than from the claimant.
  */
-export async function relinkLegacyMember(
+export async function createRelinkRequest(
   supabase: Client,
-  memberId: string,
+  claimantMemberId: string,
+  claimantLineUid: string,
   rawPhone: string
 ): Promise<RelinkResult> {
   const phone = normalizePhoneTh(rawPhone)
@@ -40,56 +41,103 @@ export async function relinkLegacyMember(
 
   const { data: legacy } = await supabase
     .from('ht_members')
-    .select('id, full_name, province_code, province_raw, pet_types, pet_other, note')
+    .select('id, full_name, points_balance, registered_at')
     .eq('phone', phone)
     .eq('source', 'legacy_sheet')
     .eq('status', 'active')
-    .neq('id', memberId)
+    .neq('id', claimantMemberId)
     .limit(1)
     .maybeSingle()
 
   if (!legacy) return { status: 'not_found' }
 
-  const { error: mergeErr } = await supabase.rpc('ht_merge_members', {
-    p_winner: memberId,
-    p_loser: legacy.id,
-    p_reason: 'legacy_composite',
-  })
-  if (mergeErr) throw new Error(`relink merge failed: ${mergeErr.message}`)
+  const { data: existing } = await supabase
+    .from('ht_relink_requests')
+    .select('id')
+    .eq('claimant_member_id', claimantMemberId)
+    .eq('legacy_member_id', legacy.id)
+    .eq('status', 'pending')
+    .limit(1)
+    .maybeSingle()
+  if (existing) return { status: 'already_pending', requestId: existing.id }
 
-  // ht_merge_members() deliberately does not touch profile fields (it must
-  // stay safe to call from submitRegistration(), where the winner's fields
-  // were just set from what the customer typed THIS request and must not
-  // be clobbered by older data). Here the winner is a fresh session with no
-  // profile yet, so backfill from the now-merged legacy row -- but still
-  // only into fields that are actually empty, in case this is somehow
-  // called on a partially-filled member.
-  const { data: winner } = await supabase.from('ht_members').select('*').eq('id', memberId).single()
-  if (!winner) throw new Error('winner member vanished mid-relink')
+  const evidence = await gatherEvidence(supabase, claimantLineUid, phone, legacy.id)
 
-  const patch: Partial<Member> = {}
-  if (!winner.full_name && legacy.full_name) patch.full_name = legacy.full_name
-  if (!winner.province_code && legacy.province_code) patch.province_code = legacy.province_code
-  if (!winner.province_code && legacy.province_raw) patch.province_raw = legacy.province_raw
-  if ((!winner.pet_types || winner.pet_types.length === 0) && legacy.pet_types?.length) {
-    patch.pet_types = legacy.pet_types
+  const { data: request, error } = await supabase
+    .from('ht_relink_requests')
+    .insert({
+      claimant_member_id: claimantMemberId,
+      legacy_member_id: legacy.id,
+      claimed_phone: phone,
+      origin: 'relink_button',
+      evidence: {
+        ...evidence,
+        legacy_name: legacy.full_name,
+        legacy_points: legacy.points_balance,
+        legacy_registered_at: legacy.registered_at,
+      },
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    // 23505 = a concurrent identical claim won the race on ux_ht_relink_open.
+    if (error.code === '23505') {
+      const { data: winner } = await supabase
+        .from('ht_relink_requests')
+        .select('id')
+        .eq('claimant_member_id', claimantMemberId)
+        .eq('legacy_member_id', legacy.id)
+        .eq('status', 'pending')
+        .limit(1)
+        .maybeSingle()
+      if (winner) return { status: 'already_pending', requestId: winner.id }
+    }
+    throw new Error(`relink request insert failed: ${error.message}`)
   }
-  if (!winner.pet_other && legacy.pet_other) patch.pet_other = legacy.pet_other
-  if (!winner.note && legacy.note) patch.note = legacy.note
-  // phone_raw/phone are already set to what the customer just typed (that's
-  // how the match was found in the first place) -- never overwritten here.
 
-  let finalMember = winner
-  if (Object.keys(patch).length > 0) {
-    const { data: updated, error: patchErr } = await supabase
-      .from('ht_members')
-      .update(patch)
-      .eq('id', memberId)
-      .select()
-      .single()
-    if (patchErr) throw new Error(`relink profile backfill failed: ${patchErr.message}`)
-    finalMember = updated
+  return { status: 'queued', requestId: request.id }
+}
+
+/** Facts a reviewer would otherwise have to dig for by hand. Never throws -- weaker evidence beats a failed request. */
+async function gatherEvidence(
+  supabase: Client,
+  claimantLineUid: string,
+  phone: string,
+  legacyMemberId: string
+): Promise<Record<string, unknown>> {
+  const evidence: Record<string, unknown> = { phone_matched: true }
+
+  try {
+    // LINE OA orders store the buyer's line_uid in buyer_account_no. If the
+    // claimant's own verified uid sits on a row carrying this phone, LINE
+    // itself is vouching for the link.
+    const { data: loa } = await supabase
+      .from('order_tracking')
+      .select('online_order, phone, shop')
+      .eq('buyer_account_no', claimantLineUid)
+      .limit(50)
+    const uidRows = loa ?? []
+    evidence.claimant_uid_seen_in_order_tracking = uidRows.length > 0
+    evidence.claimant_uid_phone_matches_claim = uidRows.some((r) => normalizePhoneTh(r.phone) === phone)
+
+    const { count: regCount } = await supabase
+      .from('ht_warranty_registrations')
+      .select('*', { count: 'exact', head: true })
+      .eq('member_id', legacyMemberId)
+    evidence.legacy_registration_count = regCount ?? 0
+
+    // Someone else already claiming the same legacy account is the single
+    // most important thing for a reviewer to see.
+    const { count: rivalCount } = await supabase
+      .from('ht_relink_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('legacy_member_id', legacyMemberId)
+      .eq('status', 'pending')
+    evidence.other_pending_claims = rivalCount ?? 0
+  } catch (err) {
+    evidence.evidence_error = err instanceof Error ? err.message : String(err)
   }
 
-  return { status: 'merged', member: finalMember }
+  return evidence
 }

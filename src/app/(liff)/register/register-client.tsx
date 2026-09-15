@@ -24,7 +24,7 @@ interface Props {
  * (Home/Warranty tabs) link here with `?new=1` to opt out of that redirect.
  */
 export function RegisterClient({ provinces, termsBody }: Props) {
-  const { state, retry, setMember } = useLiffGate()
+  const { state, retry } = useLiffGate()
   const router = useRouter()
   // Read directly off window (lazy initializer, not useEffect) rather than
   // useSearchParams() -- this component never renders anything that depends
@@ -77,7 +77,7 @@ export function RegisterClient({ provinces, termsBody }: Props) {
         </div>
       </div>
 
-      {!isReturning && <CheckLegacyMember onMerged={setMember} />}
+      {!isReturning && <CheckLegacyMember />}
 
       <RegisterForm member={state.member} provinces={provinces} termsBody={termsBody} />
     </div>

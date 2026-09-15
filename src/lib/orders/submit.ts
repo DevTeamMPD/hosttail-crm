@@ -119,14 +119,24 @@ export async function submitRegistration(
     .maybeSingle()
 
   if (legacyDupe) {
-    const { error: mergeErr } = await supabase.rpc('ht_merge_members', {
-      p_winner: memberId,
-      p_loser: legacyDupe.id,
-      p_reason: 'legacy_composite',
+    // Queue the claim, never merge here. This path used to call
+    // ht_merge_members() directly on a phone match alone -- and it ran BEFORE
+    // the submitted order was resolved, so the order corroborated nothing.
+    // Anyone who knew a customer's phone could absorb that customer's record
+    // by submitting any order reference at all. Now an admin approves it (see
+    // ht_approve_relink_request in the 20260915103000 migration); the
+    // customer's own new registration below is unaffected either way.
+    const { error: reqErr } = await supabase.from('ht_relink_requests').insert({
+      claimant_member_id: memberId,
+      legacy_member_id: legacyDupe.id,
+      claimed_phone: phone,
+      origin: 'order_submit',
+      evidence: { phone_matched: true, submitted_order_ref: input.orderRef, channel: input.channel },
     })
-    if (mergeErr) console.error('[submitRegistration] legacy merge failed', mergeErr.message)
-    // Not fatal -- worst case the customer keeps two rows and an admin
-    // merges them by hand later (ht_member_merges/manual dashboard action).
+    // 23505 just means this claim is already queued from an earlier attempt.
+    if (reqErr && reqErr.code !== '23505') {
+      console.error('[submitRegistration] relink request failed', reqErr.message)
+    }
   }
 
   // 2. Record consent -- idempotent (only inserted once per current document

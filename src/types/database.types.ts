@@ -415,6 +415,69 @@ export interface Database {
           },
         ]
       }
+      ht_relink_requests: {
+        Row: {
+          claimant_member_id: string
+          claimed_phone: string
+          created_at: string
+          evidence: Json
+          id: string
+          legacy_member_id: string
+          merge_id: string | null
+          origin: string
+          requested_at: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          claimant_member_id: string
+          claimed_phone: string
+          created_at?: string
+          evidence?: Json
+          id?: string
+          legacy_member_id: string
+          merge_id?: string | null
+          origin: string
+          requested_at?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          claimant_member_id?: string
+          claimed_phone?: string
+          created_at?: string
+          evidence?: Json
+          id?: string
+          legacy_member_id?: string
+          merge_id?: string | null
+          origin?: string
+          requested_at?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'ht_relink_requests_claimant_member_id_fkey'
+            columns: ['claimant_member_id']
+            isOneToOne: false
+            referencedRelation: 'ht_members'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ht_relink_requests_legacy_member_id_fkey'
+            columns: ['legacy_member_id']
+            isOneToOne: false
+            referencedRelation: 'ht_members'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       ht_member_platform_accounts: {
         Row: {
           account_name: string | null
@@ -1073,6 +1136,14 @@ export interface Database {
         Returns: Database['public']['Tables']['ht_members']['Row']
       }
       ht_pet_tokens: { Args: { raw: string }; Returns: string[] }
+      ht_approve_relink_request: {
+        Args: { p_request_id: string; p_actor?: string }
+        Returns: Database['public']['Tables']['ht_members']['Row']
+      }
+      ht_reject_relink_request: {
+        Args: { p_request_id: string; p_note: string; p_actor?: string }
+        Returns: undefined
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

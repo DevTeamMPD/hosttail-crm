@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { readLiffSession } from '@/lib/liff/session'
 import { rateLimit } from '@/lib/rate-limit'
-import { relinkLegacyMember } from '@/lib/orders/relink'
+import { createRelinkRequest } from '@/lib/orders/relink'
 
 export const runtime = 'nodejs'
 
@@ -13,10 +13,9 @@ export async function POST(req: Request) {
   const session = await readLiffSession(req)
   if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
-  // Tight on purpose: this endpoint accepts "knows a phone number" as proof
-  // of identity (see relink.ts's security note), so it gets a much stricter
-  // limit than order submission -- 5/hour, not 5/minute, to make scanning
-  // through a list of phone numbers impractical.
+  // Still tight even though this no longer merges anything: a loose limit
+  // would let someone enumerate which phone numbers exist in our member base
+  // from the queued/not_found answer alone.
   if (!(await rateLimit(`liff-relink:${session.memberId}`, 5, 60 * 60_000))) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
   }
@@ -26,27 +25,29 @@ export async function POST(req: Request) {
 
   const supabase = createAdminClient()
 
-  let result: Awaited<ReturnType<typeof relinkLegacyMember>>
+  let result: Awaited<ReturnType<typeof createRelinkRequest>>
   try {
-    result = await relinkLegacyMember(supabase, session.memberId, parsed.data.phone)
+    result = await createRelinkRequest(supabase, session.memberId, session.lineUid, parsed.data.phone)
   } catch (err) {
     console.error('[api/liff/relink]', err)
     return NextResponse.json({ error: 'internal_error' }, { status: 500 })
   }
 
-  // Every attempt is audit-logged, matched or not -- this is the trade-off
-  // that makes accepting "knows the phone number" as identity proof
-  // reviewable after the fact.
   await supabase.from('ht_audit_log').insert({
     actor_id: null,
-    action: result.status === 'merged' ? 'liff_relink_merged' : 'liff_relink_not_found',
-    entity: 'ht_members',
+    action: result.status === 'not_found' ? 'liff_relink_not_found' : 'liff_relink_requested',
+    entity: 'ht_relink_requests',
     entity_id: session.memberId,
-    after: result.status === 'merged' ? { merged_from: result.member.id } : null,
+    after: result.status === 'not_found' ? null : { request_id: result.requestId, status: result.status },
   })
 
   if (result.status === 'not_found') {
     return NextResponse.json({ status: 'not_found' }, { status: 404 })
   }
-  return NextResponse.json({ status: 'merged', member: result.member })
+
+  return NextResponse.json({
+    status: result.status,
+    message:
+      'ส่งคำขอเรียบร้อยแล้ว ทีมงานจะตรวจสอบและเชื่อมข้อมูลเดิมให้ภายใน 1–2 วันทำการ',
+  })
 }
