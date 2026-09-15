@@ -308,6 +308,7 @@ export interface Database {
         Row: {
           created_at: string
           full_name: string | null
+          is_test: boolean
           id: string
           line_display_name: string | null
           line_followed: boolean
@@ -332,6 +333,7 @@ export interface Database {
         Insert: {
           created_at?: string
           full_name?: string | null
+          is_test?: boolean
           id?: string
           line_display_name?: string | null
           line_followed?: boolean
@@ -356,6 +358,7 @@ export interface Database {
         Update: {
           created_at?: string
           full_name?: string | null
+          is_test?: boolean
           id?: string
           line_display_name?: string | null
           line_followed?: boolean

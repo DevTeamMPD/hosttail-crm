@@ -39,6 +39,17 @@ export async function createRelinkRequest(
   const phone = normalizePhoneTh(rawPhone)
   if (!phone) return { status: 'not_found' }
 
+  // A test account claiming a real person's history would put a decision in
+  // front of an admin that should never have been asked. Answer exactly as if
+  // the phone were unknown, so testing this screen stays possible.
+  const { data: claimant } = await supabase
+    .from('ht_members')
+    .select('is_test')
+    .eq('id', claimantMemberId)
+    .limit(1)
+    .maybeSingle()
+  if (claimant?.is_test) return { status: 'not_found' }
+
   const { data: legacy } = await supabase
     .from('ht_members')
     .select('id, full_name, points_balance, registered_at')

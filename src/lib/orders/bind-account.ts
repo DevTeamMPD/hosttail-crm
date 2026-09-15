@@ -74,6 +74,19 @@ export async function bindPlatformAccount(
   memberId: string,
   input: BindInput
 ): Promise<BindOutcome> {
+  // ux_ht_mpa_account is global: whoever holds (shop, account_no) receives
+  // every future order on it. That makes this the one write in the whole app
+  // an internal test account must never perform -- it would quietly divert a
+  // real customer's purchases. Everything else a test account does is
+  // member-scoped and cleanable (see scripts/reset-test-member.ts).
+  const { data: member } = await supabase
+    .from('ht_members')
+    .select('is_test')
+    .eq('id', memberId)
+    .limit(1)
+    .maybeSingle()
+  if (member?.is_test) return { status: 'rejected', reason: 'test_member' }
+
   const candidates = await findTrackingAccounts(supabase, input)
   if (candidates.status !== 'ok') return candidates.outcome
 
