@@ -3,6 +3,32 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* ── Hosttail brand palette ──────────────────────────────────────────────
+     Carried over verbatim from legacy/index.html so the redesigned pages
+     stay visually the same brand, not a re-skin. */
+  --ht-primary: #ff6b35; /* header gradient start, section titles, focus, submit CTA */
+  --ht-deep: #ff4500; /* header/submit gradient end (OrangeRed) */
+  --ht-accent: #d84315; /* guide box titles */
+  --ht-bg-from: #fff8f0;
+  --ht-bg-to: #fff3e8;
+  --ht-line: #00b900; /* LINE green */
+  --ht-success: #2e7d32;
+  --ht-success-bg: #e8f5e9;
+  --ht-error: #e53935;
+  --ht-returning: #1976d2; /* returning-member badge */
+  --ht-returning-bg: #e8f4fd;
+
+  /* Channel colors */
+  --ht-shopee: #ee4d2d;
+  --ht-shopee-bg: #fff0ee;
+  --ht-lazada: #0f146d;
+  --ht-lazada-bg: #eef0ff;
+  --ht-tiktok: #111111;
+  --ht-tiktok-bg: #f5f5f5;
+  --ht-homepro: #2e7d32;
+  --ht-homepro-bg: #e8f5e9;
+  --ht-makro: #1b5e20;
 }
 
 @theme inline {
@@ -10,6 +36,14 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-thai: var(--font-noto-sans-thai);
+
+  --color-ht-primary: var(--ht-primary);
+  --color-ht-deep: var(--ht-deep);
+  --color-ht-accent: var(--ht-accent);
+  --color-ht-line: var(--ht-line);
+  --color-ht-success: var(--ht-success);
+  --color-ht-error: var(--ht-error);
 }
 
 @media (prefers-color-scheme: dark) {

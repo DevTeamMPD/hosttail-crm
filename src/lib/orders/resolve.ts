@@ -1,8 +1,10 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database.types'
 import { normalizeOrderKey } from './normalize'
 import { normalizePhoneTh } from '@/lib/phone'
-import { pgInList } from '@/lib/pg-filters'
+
+type Client = SupabaseClient<Database>
 
 const PROJECT = 'Hosttail'
 const CANCELLED = 'Cancelled'
@@ -51,7 +53,7 @@ const SELECT =
  * order_no matched 6, combined 56 (70% overall; 84% of Shopee).
  */
 export async function resolveByOrderRef(
-  supabase: SupabaseClient,
+  supabase: Client,
   rawRef: string
 ): Promise<ResolveOutcome> {
   const key = normalizeOrderKey(rawRef)
@@ -114,7 +116,7 @@ export async function resolveByOrderRef(
  * their orders and points.
  */
 export async function resolveByPhone(
-  supabase: SupabaseClient,
+  supabase: Client,
   rawPhone: string
 ): Promise<ResolveOutcome[]> {
   const phone = normalizePhoneTh(rawPhone)
@@ -126,7 +128,7 @@ export async function resolveByPhone(
   const { data, error } = await supabase
     .from('order_tracking')
     .select('online_order,phone,platform,shop')
-    .or(`phone.in.${pgInList(variants)}`)
+    .in('phone', variants)
     .ilike('shop', '%hosttail%')
   if (error) throw new Error(`resolveByPhone: ${error.message}`)
   if (!data?.length) return [{ status: 'not_found' }]
