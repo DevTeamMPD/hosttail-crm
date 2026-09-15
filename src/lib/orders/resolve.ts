@@ -1,8 +1,14 @@
-import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import { normalizeOrderKey } from './normalize'
 import { normalizePhoneTh } from '@/lib/phone'
+
+// Deliberately no `import 'server-only'` here: unlike admin.ts/verify.ts,
+// this module never touches an env secret -- it only takes a Supabase
+// client as a parameter and runs queries. That makes it safe (and useful)
+// to reuse verbatim from scripts/import-legacy.ts, which runs under plain
+// tsx/node, outside Next's bundler, where `server-only` throws immediately
+// on import regardless of runtime context.
 
 type Client = SupabaseClient<Database>
 

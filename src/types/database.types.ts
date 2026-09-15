@@ -506,6 +506,7 @@ export interface Database {
           reviewed_at: string | null
           reviewed_by: string | null
           sla_due_at: string | null
+          source: string
           status: string
           submitted_at: string
           updated_at: string
@@ -535,6 +536,7 @@ export interface Database {
           reviewed_at?: string | null
           reviewed_by?: string | null
           sla_due_at?: string | null
+          source?: string
           status?: string
           submitted_at?: string
           updated_at?: string
@@ -564,6 +566,7 @@ export interface Database {
           reviewed_at?: string | null
           reviewed_by?: string | null
           sla_due_at?: string | null
+          source?: string
           status?: string
           submitted_at?: string
           updated_at?: string
