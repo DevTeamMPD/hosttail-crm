@@ -145,6 +145,8 @@ function parseThaiTs(s: string | undefined): string | null {
 interface TransformedMember {
   legacyUid: string
   line_uid: string
+  line_display_name: string | null
+  line_picture_url: string | null
   full_name: string | null
   phone_raw: string | null
   province_raw: string | null
@@ -202,6 +204,13 @@ function transform(rows: LegacyRow[]) {
     members.push({
       legacyUid: uid,
       line_uid: uid,
+      // The LINE display name and avatar as they were when the customer last
+      // used the old form. Both are refreshed from the verified ID token by
+      // /api/liff/session the moment the real person signs in under the new
+      // provider, so these only ever matter for the members who have not come
+      // back yet -- which is exactly who the dashboard needs to recognise.
+      line_display_name: last('line_name'),
+      line_picture_url: last('line_picture'),
       full_name: last('full_name'),
       phone_raw: last('phone'),
       province_raw: last('province'),
@@ -246,6 +255,8 @@ async function applyMigration(
       .upsert(
         chunk.map((m) => ({
           line_uid: m.line_uid,
+          line_display_name: m.line_display_name,
+          line_picture_url: m.line_picture_url,
           full_name: m.full_name,
           phone_raw: m.phone_raw,
           province_raw: m.province_raw,
