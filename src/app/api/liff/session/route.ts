@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       { onConflict: 'line_uid' }
     )
     .select(
-      'id, line_uid, line_display_name, line_picture_url, full_name, phone, province_code, pet_types, pet_other, points_balance, tier_code, registered_at'
+      'id, line_uid, line_display_name, line_picture_url, full_name, phone, province_code, pet_types, pet_other, note, points_balance, points_lifetime, tier_code, registered_at'
     )
     .single()
 

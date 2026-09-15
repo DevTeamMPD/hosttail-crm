@@ -18,6 +18,9 @@
   --ht-error: #e53935;
   --ht-returning: #1976d2; /* returning-member badge */
   --ht-returning-bg: #e8f4fd;
+  --ht-warning: #b26a00; /* warranty expiring soon */
+  --ht-warning-bg: #fff3d6;
+  --ht-muted: #9ca3af; /* inactive bottom-nav tab */
 
   /* Channel colors */
   --ht-shopee: #ee4d2d;

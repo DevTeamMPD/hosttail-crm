@@ -1,20 +1,22 @@
 'use client'
 
-import { useEffect } from 'react'
-import { closeLiffWindow, isInLineClient } from '@/lib/liff/client'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { isInLineClient, closeLiffWindow } from '@/lib/liff/client'
 
 interface Props {
   message: string
   status: 'active' | 'pending'
 }
 
+/**
+ * No more auto-close: with the bottom-nav app shell (/home, /profile,
+ * /warranty, /privileges) there's now somewhere useful to land after
+ * submitting, so the customer picks where to go instead of the window
+ * closing itself out from under them 3 seconds later.
+ */
 export function SuccessScreen({ message, status }: Props) {
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (isInLineClient()) closeLiffWindow()
-    }, 3000)
-    return () => clearTimeout(t)
-  }, [])
+  const router = useRouter()
 
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center gap-4 p-6 text-center">
@@ -33,7 +35,26 @@ export function SuccessScreen({ message, status }: Props) {
           ✅ ประกันมีผลแล้ว
         </span>
       )}
-      {isInLineClient() && <p className="text-xs text-gray-400">หน้าต่างนี้จะปิดอัตโนมัติ...</p>}
+
+      <div className="mt-2 w-full max-w-xs space-y-2">
+        <Button
+          type="button"
+          onClick={() => router.push('/home')}
+          className="w-full text-white"
+          style={{ background: 'linear-gradient(135deg, var(--ht-primary), var(--ht-deep))' }}
+        >
+          ไปที่หน้าหลัก
+        </Button>
+        {isInLineClient() && (
+          <button
+            type="button"
+            onClick={closeLiffWindow}
+            className="block w-full text-sm text-gray-500 underline underline-offset-2"
+          >
+            ปิดหน้าต่างนี้
+          </button>
+        )}
+      </div>
     </div>
   )
 }

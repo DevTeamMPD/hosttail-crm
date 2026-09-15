@@ -10,6 +10,10 @@ import { isPathAllowed, getHomePath } from '@/lib/permissions'
  *   /register    public LIFF app. Auth is a verified LINE ID token exchanged
  *                for our own Bearer token (see src/lib/liff/*), never a
  *                Supabase Auth cookie -- there is no session to check here.
+ *   /home
+ *   /profile     the bottom-nav app shell (src/app/(liff)/(app)/*) -- same
+ *   /warranty    LIFF-token auth as /register, just split across 4 tab
+ *   /privileges  routes instead of one page.
  *   /api/liff/*  LIFF API. Auth is `Authorization: Bearer <app token>`,
  *                verified inside each route handler via readLiffSession().
  *   /api/line/*  LINE webhook + quota check. The webhook verifies
@@ -22,7 +26,18 @@ import { isPathAllowed, getHomePath } from '@/lib/permissions'
  *                Supabase Auth session without ever being unreachable itself.
  *   /api/auth/*  Phase 2 (not built yet) -- login/logout route handlers.
  */
-const PUBLIC_PREFIXES = ['/register', '/api/liff', '/api/line', '/api/cron', '/login', '/api/auth']
+const PUBLIC_PREFIXES = [
+  '/register',
+  '/home',
+  '/profile',
+  '/warranty',
+  '/privileges',
+  '/api/liff',
+  '/api/line',
+  '/api/cron',
+  '/login',
+  '/api/auth',
+]
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'))

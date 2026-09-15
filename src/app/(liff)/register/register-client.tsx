@@ -1,23 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import {
-  initLiff,
-  isLiffLoggedIn,
-  loginLiff,
-  bootstrapLiffSession,
-  type LiffMemberPublic,
-} from '@/lib/liff/client'
+import { useRouter } from 'next/navigation'
+import { useLiffGate } from '@/lib/liff/use-liff-gate'
+import { LiffLoadingScreen, LiffErrorScreen } from '@/lib/liff/liff-gate-screens'
 import { RegisterForm } from './register-form'
 import { CheckLegacyMember } from './check-legacy-member'
 import type { ProvinceOption } from './province-select'
-
-type GateState =
-  | { phase: 'checking' }
-  | { phase: 'redirecting' } // liff.login() is navigating away; component will unmount
-  | { phase: 'error'; message: string }
-  | { phase: 'ready'; member: LiffMemberPublic }
 
 interface Props {
   provinces: ProvinceOption[]
@@ -25,98 +15,46 @@ interface Props {
 }
 
 /**
- * Auth gate: liff.init() -> isLoggedIn() -> getIDToken() -> POST
- * /api/liff/session -> server verifies against LINE -> upserts ht_members
- * keyed on the verified sub claim -> mints our own app token. Renders the
- * registration form only once that chain has succeeded.
+ * Auth gate (see useLiffGate) then the registration/add-order form.
+ *
+ * A returning member (full_name + phone already set) who opens this page
+ * bare -- i.e. via the LIFF app's configured entry point, not a link we
+ * generated ourselves -- is sent straight to the bottom-nav app shell at
+ * /home instead of seeing the form again. Our own "add a new order" CTAs
+ * (Home/Warranty tabs) link here with `?new=1` to opt out of that redirect.
  */
 export function RegisterClient({ provinces, termsBody }: Props) {
-  const [state, setState] = useState<GateState>({ phase: 'checking' })
+  const { state, retry, setMember } = useLiffGate()
+  const router = useRouter()
+  // Read directly off window (lazy initializer, not useEffect) rather than
+  // useSearchParams() -- this component never renders anything that depends
+  // on the flag until the async LIFF boot resolves (server-side it's always
+  // the loading screen regardless), so there's no hydration mismatch, and no
+  // need for the <Suspense> boundary useSearchParams() would require.
+  const [forceForm] = useState(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('new') === '1'
+  )
 
-  const boot = useCallback(async () => {
-    try {
-      await initLiff()
-    } catch (err) {
-      console.error('[register] liff.init failed', err)
-      setState({ phase: 'error', message: 'กรุณาเปิดหน้านี้ผ่าน LINE OA @hosttail' })
-      return
-    }
-
-    if (!isLiffLoggedIn()) {
-      setState({ phase: 'redirecting' })
-      loginLiff() // navigates away
-      return
-    }
-
-    try {
-      const member = await bootstrapLiffSession()
-      if (!member) throw new Error('no member in response')
-      setState({ phase: 'ready', member })
-    } catch (err) {
-      console.error('[register] session bootstrap failed', err)
-      setState({ phase: 'error', message: 'ไม่สามารถยืนยันตัวตนได้ กรุณาลองใหม่อีกครั้ง' })
-    }
-  }, [])
+  const isReady = state.phase === 'ready'
+  const member = isReady ? state.member : null
+  const isReturning = Boolean(member?.full_name && member?.phone)
 
   useEffect(() => {
-    boot()
-  }, [boot])
+    if (isReady && isReturning && !forceForm) {
+      router.replace('/home')
+    }
+  }, [isReady, isReturning, forceForm, router])
 
-  if (state.phase === 'checking' || state.phase === 'redirecting') {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center p-6 text-center">
-        <div className="space-y-3">
-          <div
-            className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[var(--ht-primary)] border-t-transparent"
-            role="status"
-            aria-label="กำลังโหลด"
-          />
-          <p className="text-sm text-gray-500">กำลังเชื่อมต่อ LINE...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (state.phase === 'error') {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center p-6 text-center">
-        <div className="w-full max-w-xs space-y-4 rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-base font-medium" style={{ color: 'var(--ht-error)' }}>
-            {state.message}
-          </p>
-          <a
-            href="https://line.me/R/ti/p/@hosttail"
-            className="inline-block w-full rounded-full px-5 py-2.5 text-sm font-medium text-white"
-            style={{ background: 'var(--ht-line)' }}
-          >
-            เปิด LINE OA @hosttail
-          </a>
-          <button
-            type="button"
-            onClick={() => {
-              // Safe here (an event handler, not an effect body): show the
-              // spinner immediately instead of leaving the error card up
-              // until boot() resolves.
-              setState({ phase: 'checking' })
-              boot()
-            }}
-            className="block w-full text-sm text-gray-500 underline underline-offset-2"
-          >
-            ลองใหม่อีกครั้ง
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  const { member } = state
+  if (state.phase === 'checking' || state.phase === 'redirecting') return <LiffLoadingScreen />
+  if (state.phase === 'error') return <LiffErrorScreen message={state.message} onRetry={retry} />
+  if (isReturning && !forceForm) return <LiffLoadingScreen /> // brief flash while router.replace('/home') takes effect
 
   return (
     <div className="space-y-4 p-4 pb-2">
       <div className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm">
-        {member.line_picture_url ? (
+        {state.member.line_picture_url ? (
           <Image
-            src={member.line_picture_url}
+            src={state.member.line_picture_url}
             alt=""
             width={48}
             height={48}
@@ -128,7 +66,7 @@ export function RegisterClient({ provinces, termsBody }: Props) {
         )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-gray-900">
-            {member.line_display_name ?? 'สมาชิก LINE'}
+            {state.member.line_display_name ?? 'สมาชิก LINE'}
           </p>
           <p
             className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white"
@@ -139,11 +77,9 @@ export function RegisterClient({ provinces, termsBody }: Props) {
         </div>
       </div>
 
-      {!(member.full_name && member.phone) && (
-        <CheckLegacyMember onMerged={(merged) => setState({ phase: 'ready', member: merged })} />
-      )}
+      {!isReturning && <CheckLegacyMember onMerged={setMember} />}
 
-      <RegisterForm member={member} provinces={provinces} termsBody={termsBody} />
+      <RegisterForm member={state.member} provinces={provinces} termsBody={termsBody} />
     </div>
   )
 }

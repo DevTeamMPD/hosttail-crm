@@ -12,7 +12,9 @@ export interface LiffMemberPublic {
   province_code: string | null
   pet_types: string[]
   pet_other: string | null
+  note: string | null
   points_balance: number
+  points_lifetime: number
   tier_code: string | null
   registered_at: string
 }
