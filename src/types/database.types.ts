@@ -415,6 +415,69 @@ export interface Database {
           },
         ]
       }
+      ht_member_platform_accounts: {
+        Row: {
+          account_name: string | null
+          account_no: string
+          bound_at: string
+          bound_via: string
+          created_at: string
+          id: string
+          member_id: string
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          shop: string
+          source_registration_id: string | null
+          status: string
+        }
+        Insert: {
+          account_name?: string | null
+          account_no: string
+          bound_at?: string
+          bound_via: string
+          created_at?: string
+          id?: string
+          member_id: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          shop: string
+          source_registration_id?: string | null
+          status?: string
+        }
+        Update: {
+          account_name?: string | null
+          account_no?: string
+          bound_at?: string
+          bound_via?: string
+          created_at?: string
+          id?: string
+          member_id?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          shop?: string
+          source_registration_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'ht_member_platform_accounts_member_id_fkey'
+            columns: ['member_id']
+            isOneToOne: false
+            referencedRelation: 'ht_members'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ht_member_platform_accounts_source_registration_id_fkey'
+            columns: ['source_registration_id']
+            isOneToOne: false
+            referencedRelation: 'ht_warranty_registrations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       ht_member_merges: {
         Row: {
           id: string

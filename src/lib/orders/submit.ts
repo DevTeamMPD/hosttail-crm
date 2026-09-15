@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import type { SubmitRegistrationInput } from './schema'
 import { resolveByOrderRef, resolveByPhone, type ResolveOutcome } from './resolve'
+import { bindPlatformAccount } from './bind-account'
 import { normalizePhoneTh } from '@/lib/phone'
 import { channelMeta } from '@/lib/brand'
 import { getWarrantySettings } from '@/lib/settings'
@@ -223,6 +224,36 @@ export async function submitRegistration(
       p_items: items,
     })
     if (finalizeErr) throw new SubmitError('finalize_failed', 500, finalizeErr.message)
+
+    // 5b. Bind the platform buyer account behind this order, so the member's
+    // NEXT purchase can attribute itself without them entering anything.
+    // Deliberately only on this branch: the order verified against
+    // sales_transaction, which is the same bar that just granted points. A
+    // binding claims every future order on that account, so it must never be
+    // handed out on an unverified reference.
+    try {
+      const bind = await bindPlatformAccount(supabase, memberId, {
+        orderRefs: [input.orderRef, outcome.orderNo],
+        phone: meta.refKind === 'phone' ? phone : null,
+        registrationId: reg.id,
+        boundVia: 'registration',
+      })
+      if (bind.status === 'claimed_by_other') {
+        // Two members pointing at one buyer account. Never reassign silently
+        // -- record it and let an admin decide who owns it.
+        await supabase.from('ht_audit_log').insert({
+          actor_id: null,
+          action: 'platform_account_contested',
+          entity: 'ht_member_platform_accounts',
+          entity_id: memberId,
+          after: { shop: bind.shop, account_no: bind.accountNo, owner_member_id: bind.ownerMemberId },
+        })
+      }
+    } catch (err) {
+      // Binding is an enhancement; the customer's warranty and points are
+      // already committed above and must not be rolled back over this.
+      console.error('[submitRegistration] platform account binding failed', err)
+    }
 
     return {
       registrationId: reg.id,
