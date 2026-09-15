@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { ChannelTabs } from './channel-tabs'
+import { GuideAccordion } from './guide-accordion'
 import { PetPicker } from './pet-picker'
 import { ProvinceSelect, type ProvinceOption } from './province-select'
 import { ReceiptUpload } from './receipt-upload'
@@ -176,6 +177,7 @@ export function RegisterForm({ member, provinces, termsBody }: Props) {
           📦 ช่องทางการสั่งซื้อ
         </h2>
         <ChannelTabs value={form.channel} onChange={(v) => set('channel', v)} />
+        <GuideAccordion channel={form.channel} />
 
         {meta.refKind === 'order_id' && (
           <div className="space-y-1" id="field-orderRef">
