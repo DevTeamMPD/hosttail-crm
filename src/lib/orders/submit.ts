@@ -95,6 +95,39 @@ export async function submitRegistration(
     throw new SubmitError('profile_update_failed', 500, memberErr.message)
   }
 
+  // 1b. Re-link a legacy member by phone. The 72 real members imported from
+  // the old Google Sheet were registered under a LINE Login channel that
+  // turned out to belong to a different LINE Developers PROVIDER than the
+  // org-owned one this app now uses -- LINE user IDs are scoped per
+  // provider, so their old line_uid can never appear again. The first time
+  // one of them opens the new LIFF app, POST /api/liff/session mints them a
+  // brand-new, historyless ht_members row (their old line_uid was never
+  // seen before under the new provider). The moment they type in the same
+  // phone number here, merge that dead legacy row's warranty/points history
+  // into this live one. See ht_merge_members() for exactly what does and
+  // does not get moved (the points ledger itself is append-only and never
+  // touched -- only the net balance carries forward as one new entry).
+  const { data: legacyDupe } = await supabase
+    .from('ht_members')
+    .select('id')
+    .eq('phone', phone)
+    .eq('source', 'legacy_sheet')
+    .eq('status', 'active')
+    .neq('id', memberId)
+    .limit(1)
+    .maybeSingle()
+
+  if (legacyDupe) {
+    const { error: mergeErr } = await supabase.rpc('ht_merge_members', {
+      p_winner: memberId,
+      p_loser: legacyDupe.id,
+      p_reason: 'legacy_composite',
+    })
+    if (mergeErr) console.error('[submitRegistration] legacy merge failed', mergeErr.message)
+    // Not fatal -- worst case the customer keeps two rows and an admin
+    // merges them by hand later (ht_member_merges/manual dashboard action).
+  }
+
   // 2. Record consent -- idempotent (only inserted once per current document
   // version), and against BOTH 'terms' and 'pdpa' from the single checkbox
   // the form shows: the legacy page only ever asked about warranty terms

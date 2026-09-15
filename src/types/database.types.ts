@@ -1002,6 +1002,10 @@ export interface Database {
       }
       ht_is_staff: { Args: { p_min_role?: string }; Returns: boolean }
       ht_current_staff_role: { Args: Record<PropertyKey, never>; Returns: string }
+      ht_merge_members: {
+        Args: { p_winner: string; p_loser: string; p_reason: string; p_actor?: string }
+        Returns: Database['public']['Tables']['ht_members']['Row']
+      }
       ht_pet_tokens: { Args: { raw: string }; Returns: string[] }
     }
     Enums: Record<string, never>

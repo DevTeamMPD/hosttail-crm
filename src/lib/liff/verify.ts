@@ -19,11 +19,24 @@ export interface LineIdTokenClaims {
  * our LINE Login channel.
  *
  * ⚠️ LINE_LOGIN_CHANNEL_ID is the LOGIN channel id (the numeric prefix of
- * NEXT_PUBLIC_LIFF_ID, e.g. "2010446478"). This is a DIFFERENT channel from
- * the Messaging API channel that LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN
- * belong to -- mixing the two up is the most common failure mode of a LIFF
- * integration. Confirm the login channel id in the LINE Developers console
- * before relying on this in production.
+ * NEXT_PUBLIC_LIFF_ID). This is a DIFFERENT channel from the Messaging API
+ * channel that LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN belong to --
+ * mixing the two up is a common failure mode of a LIFF integration.
+ *
+ * ⚠️⚠️ It must ALSO be under the same LINE Developers PROVIDER as the real
+ * Hosttail Messaging API channel (the OA customers actually follow) --
+ * confirmed 2026-09-15: LINE user IDs are scoped per PROVIDER, not per
+ * channel, so a Login channel under a different provider issues a
+ * completely unrelated line_uid for the same real person. The channel
+ * hardcoded in legacy/index.html (2010446478) turned out to have been
+ * created under a former developer's PERSONAL provider, unrelated to the
+ * org-owned one -- the 72 real legacy members' line_uids from that channel
+ * are permanently unusable here regardless of this env var's value. The
+ * live channel is 1660779377, under the org provider. See
+ * submit.ts's phone-based ht_merge_members() call for how those legacy
+ * members get their history re-linked on their first login under the new
+ * provider. Confirm the login channel id (and its provider) in the LINE
+ * Developers console before relying on this in production.
  *
  * The caller MUST treat `claims.sub` as the only valid source of a member's
  * line_uid. Never accept a line_uid from a request body -- that is exactly
