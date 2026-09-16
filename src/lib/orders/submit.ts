@@ -108,15 +108,24 @@ export async function submitRegistration(
   // into this live one. See ht_merge_members() for exactly what does and
   // does not get moved (the points ledger itself is append-only and never
   // touched -- only the net balance carries forward as one new entry).
-  const { data: legacyDupe } = await supabase
+  const { data: self } = await supabase
     .from('ht_members')
-    .select('id')
-    .eq('phone', phone)
-    .eq('source', 'legacy_sheet')
-    .eq('status', 'active')
-    .neq('id', memberId)
+    .select('is_test')
+    .eq('id', memberId)
     .limit(1)
     .maybeSingle()
+
+  const { data: legacyDupe } = self?.is_test
+    ? { data: null } // test accounts never claim a real person's history -- same rule as createRelinkRequest()
+    : await supabase
+        .from('ht_members')
+        .select('id')
+        .eq('phone', phone)
+        .eq('source', 'legacy_sheet')
+        .eq('status', 'active')
+        .neq('id', memberId)
+        .limit(1)
+        .maybeSingle()
 
   if (legacyDupe) {
     // Queue the claim, never merge here. This path used to call
