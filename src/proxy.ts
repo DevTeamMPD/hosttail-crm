@@ -45,6 +45,14 @@ function isPublic(pathname: string): boolean {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  // The bare domain (and the legacy static page's /index.html) belong to
+  // customers, not staff: send them to the LIFF form instead of the staff
+  // login. The query string is kept so LIFF's liff.state survives.
+  if (pathname === '/' || pathname === '/index.html') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/register'
+    return NextResponse.redirect(url)
+  }
   if (isPublic(pathname)) return NextResponse.next()
 
   let proxyResponse = NextResponse.next({ request })
