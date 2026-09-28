@@ -1,15 +1,13 @@
 import type { Metadata } from 'next'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { getCurrentTermsBody, getProvinces } from '@/lib/liff/reference-data'
 import { RegisterClient } from './register-client'
 
 export const metadata: Metadata = {
   title: 'ลงทะเบียนรับประกันสินค้า — Hosttail',
 }
 
-// Static per request, not cached across requests -- ht_provinces and the
-// current terms document rarely change, but this is server-only data the
-// customer's browser could never fetch directly anyway (RLS on ht_provinces
-// restricts SELECT to staff; a LIFF customer has no Supabase Auth session).
+// Dynamic for ?new=1; the provinces and terms it renders come from an
+// hour-long server cache (src/lib/liff/reference-data.ts).
 export const dynamic = 'force-dynamic'
 
 export default async function RegisterPage({
@@ -18,24 +16,13 @@ export default async function RegisterPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { new: newParam } = await searchParams
-  const supabase = createAdminClient()
-
-  const [{ data: provinces }, { data: termsDoc }] = await Promise.all([
-    supabase.from('ht_provinces').select('code, name_th, region').order('sort_order'),
-    supabase
-      .from('ht_consent_documents')
-      .select('body_md')
-      .eq('kind', 'terms')
-      .eq('locale', 'th')
-      .eq('is_current', true)
-      .maybeSingle(),
-  ])
+  const [provinces, termsBody] = await Promise.all([getProvinces(), getCurrentTermsBody()])
 
   return (
     <>
       <RegisterClient
-        provinces={provinces ?? []}
-        termsBody={termsDoc?.body_md ?? ''}
+        provinces={provinces}
+        termsBody={termsBody}
         forceForm={newParam === '1'}
       />
     </>

@@ -27,35 +27,59 @@ export interface WarrantyItem {
   status: string
 }
 
-/** Backs both the Home tab's summary stats and the Warranty tab's full list -- same GET /api/liff/orders response, fetched once per tab visit. */
+interface WarrantyData {
+  registrations: WarrantyRegistration[]
+  items: WarrantyItem[]
+}
+
+// Shared across the Home and Warranty tabs for this page load: switching tabs
+// shows the last result straight away and refreshes it in the background,
+// instead of a blank "loading" state on every tab visit.
+let cache: WarrantyData | null = null
+let inflight: Promise<WarrantyData> | null = null
+
+function load(): Promise<WarrantyData> {
+  inflight ??= (async () => {
+    const res = await liffFetch('/api/liff/orders')
+    if (!res.ok) throw new Error(`status ${res.status}`)
+    const data = (await res.json()) as WarrantyData
+    cache = data
+    return data
+  })().finally(() => {
+    inflight = null
+  })
+  return inflight
+}
+
+/** Drop the cache after the member's registrations change (e.g. a new submission). */
+export function invalidateWarrantyData(): void {
+  cache = null
+}
+
+/** Backs both the Home tab's summary stats and the Warranty tab's full list -- same GET /api/liff/orders response. */
 export function useWarrantyData() {
-  const [registrations, setRegistrations] = useState<WarrantyRegistration[] | null>(null)
-  const [items, setItems] = useState<WarrantyItem[] | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<WarrantyData | null>(() => cache)
+  const [loading, setLoading] = useState(() => cache === null)
   const [error, setError] = useState(false)
 
   const refresh = useCallback(async () => {
-    setLoading(true)
+    if (!cache) setLoading(true)
     setError(false)
     try {
-      const res = await liffFetch('/api/liff/orders')
-      if (!res.ok) throw new Error(`status ${res.status}`)
-      const data = (await res.json()) as { registrations: WarrantyRegistration[]; items: WarrantyItem[] }
-      setRegistrations(data.registrations)
-      setItems(data.items)
+      setData(await load())
     } catch (err) {
       console.error('[useWarrantyData]', err)
-      setError(true)
+      if (!cache) setError(true)
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    // Fetch-on-mount, same as use-liff-gate.ts -- refresh() is a network call.
+    // Fetch-on-mount (revalidate even when cached) -- refresh() is a network call.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh()
   }, [refresh])
 
-  return { registrations, items, loading, error, refresh }
+  return { registrations: data?.registrations ?? null, items: data?.items ?? null, loading, error, refresh }
 }

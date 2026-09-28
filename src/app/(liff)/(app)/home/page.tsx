@@ -6,7 +6,7 @@ import { useMember } from '../member-context'
 import { useWarrantyData } from '../use-warranty-data'
 import { ItemStatusBadge } from '../warranty/status-badge'
 import { formatThaiDate, daysUntil } from '@/lib/format-th'
-import { CARD_SHADOW, primaryButtonClass } from '../../ui'
+import { CARD_SHADOW, Skeleton, primaryButtonClass } from '../../ui'
 
 const PREVIEW_ITEMS = 5
 
@@ -43,7 +43,7 @@ export default function HomePage() {
             <span className="text-[13px] opacity-85">สวัสดี</span>
             <span className="truncate text-xl font-semibold">คุณ{member.full_name ?? member.line_display_name ?? 'สมาชิก'}</span>
           </div>
-          <Image src="/logo.png" alt="Hosttail" width={34} height={34} className="ml-auto h-[34px] w-[34px] rounded-full bg-white object-cover" />
+          <Image src="/logo.png" alt="Hosttail" width={44} height={44} className="ml-auto h-11 w-11 shrink-0 rounded-full bg-white object-cover" />
         </div>
         <p className="mt-3.5 text-xs opacity-85">สมาชิกตั้งแต่ {formatThaiDate(member.registered_at)}</p>
       </header>
@@ -53,9 +53,9 @@ export default function HomePage() {
           className="grid grid-cols-[1fr_1px_1fr] rounded-[20px] bg-white"
           style={{ boxShadow: '0 8px 24px -12px rgba(60,30,10,0.2)' }}
         >
-          <Stat value={loading ? '—' : activeItems.length} label="ประกันที่ใช้งานอยู่" color="var(--ht-success)" />
+          <Stat value={loading ? null : activeItems.length} label="ประกันที่ใช้งานอยู่" color="var(--ht-success)" />
           <div className="my-3.5 bg-[var(--ht-divider)]" />
-          <Stat value={loading ? '—' : nearExpiry.length} label="ใกล้หมดประกัน (60 วัน)" color="var(--ht-warning)" />
+          <Stat value={loading ? null : nearExpiry.length} label="ใกล้หมดประกัน (60 วัน)" color="var(--ht-warning)" />
         </div>
 
         {pendingCount > 0 && (
@@ -83,6 +83,16 @@ export default function HomePage() {
         </div>
 
         <div className="flex flex-col rounded-[20px] bg-white" style={{ boxShadow: CARD_SHADOW }}>
+          {loading &&
+            [0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3.5" style={i < 2 ? { borderBottom: '1px solid var(--ht-row-divider)' } : undefined}>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Skeleton className="h-3.5 w-2/3" />
+                  <Skeleton className="h-3 w-1/3" />
+                </div>
+                <Skeleton className="h-6 w-16 rounded-full" />
+              </div>
+            ))}
           {!loading && listed.length === 0 && (
             <p className="px-4 py-6 text-center text-sm text-[var(--ht-text-3)]">ยังไม่มีสินค้าที่รับประกัน</p>
           )}
@@ -105,12 +115,16 @@ export default function HomePage() {
   )
 }
 
-function Stat({ value, label, color }: { value: number | string; label: string; color: string }) {
+function Stat({ value, label, color }: { value: number | null; label: string; color: string }) {
   return (
     <div className="flex flex-col gap-1 p-[18px]">
-      <span className="text-[30px] leading-none font-semibold" style={{ color }}>
-        {value}
-      </span>
+      {value === null ? (
+        <Skeleton className="h-[30px] w-10" />
+      ) : (
+        <span className="text-[30px] leading-none font-semibold" style={{ color }}>
+          {value}
+        </span>
+      )}
       <span className="text-xs text-[var(--ht-text-3)]">{label}</span>
     </div>
   )

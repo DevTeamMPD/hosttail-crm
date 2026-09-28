@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import Image from 'next/image'
-import { Camera, ImageIcon } from 'lucide-react'
+import { ImagePlus } from 'lucide-react'
 import { liffFetch } from '@/lib/liff/client'
 import { createClient } from '@/lib/supabase/client'
 
@@ -120,12 +120,10 @@ export function ReceiptUpload({ hasFile, onUploaded, onClear, disabled, error }:
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-2">
-                {/* Two inputs on purpose: `capture` forces the camera on
-                    phones, so the gallery button must not carry it. */}
-                <PickButton label="ถ่ายรูป" icon={<Camera size={20} aria-hidden />} capture disabled={disabled} onFile={handleFile} />
-                <PickButton label="เลือกจากคลังภาพ" icon={<ImageIcon size={20} aria-hidden />} disabled={disabled} onFile={handleFile} inputRef={inputRef} />
-              </div>
+              {/* No `capture`: the OS then offers camera AND library itself
+                  (iOS: คลังรูปภาพ / ถ่ายภาพ / เลือกไฟล์). `capture` would force
+                  the camera and hide the library. */}
+              <PickButton label="แนบรูปใบเสร็จ" icon={<ImagePlus size={22} aria-hidden />} disabled={disabled} onFile={handleFile} inputRef={inputRef} />
               <span className="text-center text-xs text-[var(--ht-text-4)]">JPEG, PNG, WEBP, HEIC ไม่เกิน 8MB</span>
             </>
           )}
@@ -143,21 +141,19 @@ const ACCEPT = 'image/jpeg,image/png,image/webp,image/heic'
 function PickButton({
   label,
   icon,
-  capture,
   disabled,
   onFile,
   inputRef,
 }: {
   label: string
   icon: React.ReactNode
-  capture?: boolean
   disabled?: boolean
   onFile: (file: File) => void
   inputRef?: React.RefObject<HTMLInputElement | null>
 }) {
   return (
     <label
-      className="flex h-[60px] cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-[1.5px] border-[var(--ht-border)] bg-white text-[13px] font-medium text-[var(--ht-deep)] active:bg-[var(--ht-bg-to)]"
+      className="flex h-[64px] cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-[1.5px] border-[var(--ht-border)] bg-white text-[13px] font-medium text-[var(--ht-deep)] active:bg-[var(--ht-bg-to)]"
       style={disabled ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
     >
       {icon}
@@ -166,7 +162,6 @@ function PickButton({
         ref={inputRef}
         type="file"
         accept={ACCEPT}
-        capture={capture ? 'environment' : undefined}
         className="sr-only"
         disabled={disabled}
         onChange={(e) => {

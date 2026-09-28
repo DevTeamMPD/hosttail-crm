@@ -13,6 +13,7 @@ import { SuccessScreen } from './success-screen'
 import { SubmitRegistrationSchema } from '@/lib/orders/schema'
 import { channelMeta, PET_TYPES, type OrderChannel, type PetType } from '@/lib/brand'
 import { liffFetch, type LiffMemberPublic } from '@/lib/liff/client'
+import { invalidateWarrantyData } from '../(app)/use-warranty-data'
 import { CARD_SHADOW, Card, CheckBox, Field, FieldError, SectionTitle, StickyBar, fieldClass, primaryButtonClass } from '../ui'
 
 interface Props {
@@ -130,6 +131,7 @@ export function RegisterForm({ member, provinces, termsBody }: Props) {
         if (res.status === 403) throw new Error(body.message ?? 'เบอร์โทรไม่ตรงกับที่ลงทะเบียนไว้')
         throw new Error(body.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')
       }
+      invalidateWarrantyData()
       setResult({ status: body.status, message: body.message, at: new Date() })
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง')

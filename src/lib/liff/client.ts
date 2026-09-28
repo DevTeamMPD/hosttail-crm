@@ -22,12 +22,32 @@ export interface LiffMemberPublic {
 let appToken: string | null = null
 let appTokenExp = 0
 let inflight: Promise<LiffMemberPublic | null> | null = null
+let initPromise: Promise<void> | null = null
+// Last member returned by the session route, kept for as long as the app
+// token is valid. /register and the bottom-nav shell are separate layouts,
+// so without this every hop between them re-ran liff.init() and a fresh
+// token exchange (a LINE verify call plus a DB upsert) before painting.
+let cachedMember: LiffMemberPublic | null = null
 
-/** liff.init() only -- call once, before anything else. */
-export async function initLiff(): Promise<void> {
+/** liff.init(), once per page load -- later callers share the same promise. */
+export function initLiff(): Promise<void> {
   const liffId = process.env.NEXT_PUBLIC_LIFF_ID
-  if (!liffId) throw new Error('NEXT_PUBLIC_LIFF_ID is not set')
-  await liff.init({ liffId })
+  if (!liffId) return Promise.reject(new Error('NEXT_PUBLIC_LIFF_ID is not set'))
+  initPromise ??= liff.init({ liffId }).catch((err) => {
+    initPromise = null // allow a retry after a failure
+    throw err
+  })
+  return initPromise
+}
+
+/** Member from this page load's session, if the app token is still valid. Lets screens paint without waiting. */
+export function getCachedMember(): LiffMemberPublic | null {
+  return cachedMember && appToken && Date.now() < appTokenExp - 60_000 ? cachedMember : null
+}
+
+/** Keep the cache in step after a mutation (e.g. profile edit). */
+export function rememberMember(member: LiffMemberPublic): void {
+  cachedMember = member
 }
 
 export function isLiffLoggedIn(): boolean {
@@ -81,11 +101,14 @@ async function exchangeToken(): Promise<LiffMemberPublic | null> {
   }
   appToken = data.token
   appTokenExp = Date.now() + data.expiresIn * 1000
+  cachedMember = data.member
   return data.member
 }
 
 /** Call after initLiff() + a login check. Resolves to the member row (always non-null on success -- the session route always upserts a shell). */
 export async function bootstrapLiffSession(): Promise<LiffMemberPublic | null> {
+  const cached = getCachedMember()
+  if (cached) return cached
   inflight ??= exchangeToken().finally(() => {
     inflight = null
   })
@@ -94,7 +117,10 @@ export async function bootstrapLiffSession(): Promise<LiffMemberPublic | null> {
 
 async function getAppToken(): Promise<string> {
   if (appToken && Date.now() < appTokenExp - 60_000) return appToken
-  await bootstrapLiffSession()
+  inflight ??= exchangeToken().finally(() => {
+    inflight = null
+  })
+  await inflight
   if (!appToken) throw new Error('failed to obtain an app token')
   return appToken
 }

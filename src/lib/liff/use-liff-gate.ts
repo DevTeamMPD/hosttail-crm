@@ -1,7 +1,15 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { initLiff, isLiffLoggedIn, loginLiff, bootstrapLiffSession, type LiffMemberPublic } from './client'
+import {
+  initLiff,
+  isLiffLoggedIn,
+  loginLiff,
+  bootstrapLiffSession,
+  getCachedMember,
+  rememberMember,
+  type LiffMemberPublic,
+} from './client'
 
 export type LiffGateState =
   | { phase: 'checking' }
@@ -17,7 +25,12 @@ export type LiffGateState =
  * of two copies that can drift.
  */
 export function useLiffGate() {
-  const [state, setState] = useState<LiffGateState>({ phase: 'checking' })
+  // Already signed in during this page load (e.g. /register -> /home): start
+  // ready instead of flashing the loading screen and re-running the chain.
+  const [state, setState] = useState<LiffGateState>(() => {
+    const cached = getCachedMember()
+    return cached ? { phase: 'ready', member: cached } : { phase: 'checking' }
+  })
 
   const boot = useCallback(async () => {
     try {
@@ -45,6 +58,7 @@ export function useLiffGate() {
   }, [])
 
   useEffect(() => {
+    if (getCachedMember()) return
     // The classic fetch-on-mount pattern -- boot() is an async chain
     // (LIFF init -> login check -> network token exchange), not synchronous
     // state derived from props/state, so it can't be computed during render.
@@ -54,6 +68,7 @@ export function useLiffGate() {
 
   /** Update the member in place after a mutation (profile edit, legacy merge) without re-running the whole boot chain. */
   const setMember = useCallback((member: LiffMemberPublic) => {
+    rememberMember(member)
     setState({ phase: 'ready', member })
   }, [])
 

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { ChannelMeta } from '@/lib/brand'
 import { cn } from '@/lib/utils'
 
@@ -159,4 +159,28 @@ export function StickyBar({ children, aboveNav }: { children: ReactNode; aboveNa
 const SHORT = new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })
 export function shortThaiDate(iso: string | null): string {
   return iso ? SHORT.format(new Date(iso)) : '—'
+}
+
+/** Pulsing placeholder block for skeleton screens. */
+export function Skeleton({ className, style }: { className?: string; style?: CSSProperties }) {
+  return <div aria-hidden className={cn('animate-pulse rounded-lg bg-[#efe6de]', className)} style={style} />
+}
+
+/** Skeleton of a white card with a few text lines -- used while lists load. */
+export function CardSkeleton({ lines = 2 }: { lines?: number }) {
+  return (
+    <div className="flex flex-col gap-3 rounded-[20px] bg-white p-4" style={{ boxShadow: CARD_SHADOW }}>
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-[34px] w-[34px] rounded-[10px]" />
+        <div className="flex flex-1 flex-col gap-1.5">
+          <Skeleton className="h-3.5 w-1/3" />
+          <Skeleton className="h-3 w-1/2" />
+        </div>
+        <Skeleton className="h-6 w-20 rounded-full" />
+      </div>
+      {Array.from({ length: lines }, (_, i) => (
+        <Skeleton key={i} className="h-3 w-full" />
+      ))}
+    </div>
+  )
 }

@@ -6,7 +6,7 @@ import { useWarrantyData, type WarrantyRegistration, type WarrantyItem } from '.
 import { RegistrationStatusBadge, ItemStatusBadge } from './status-badge'
 import { channelMeta } from '@/lib/brand'
 import { formatThaiDate, daysUntil } from '@/lib/format-th'
-import { CARD_SHADOW, ChannelBadge, Note, shortThaiDate } from '../../ui'
+import { CARD_SHADOW, CardSkeleton, ChannelBadge, Note, shortThaiDate } from '../../ui'
 
 const TABS = [
   { key: 'all', label: 'ทั้งหมด' },
@@ -56,7 +56,13 @@ export default function WarrantyPage() {
         })}
       </div>
 
-      {loading && <p className="py-10 text-center text-sm text-[var(--ht-text-4)]">กำลังโหลด...</p>}
+      {loading && (
+        <div className="flex flex-col gap-3" role="status" aria-label="กำลังโหลด">
+          <CardSkeleton lines={2} />
+          <CardSkeleton lines={1} />
+          <CardSkeleton lines={2} />
+        </div>
+      )}
 
       {error && (
         <div className="flex flex-col items-center gap-2 rounded-[20px] bg-white p-5 text-sm" style={{ boxShadow: CARD_SHADOW }}>
