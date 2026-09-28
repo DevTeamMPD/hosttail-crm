@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #3b2a1e;
+
+  /* ── Hosttail CI ──────────────────────────────────────────────────────
+     From the Claude Design files "Hosttail Mobile Forms" and "Hosttail
+     Dashboard": flat orange as the primary, cream surfaces, brown ink,
+     teal for "waiting for review", yellow as the accent. */
+  --ht-primary: #f36e23; /* primary actions, active states, section numbers */
+  --ht-deep: #c9561a; /* links and text on cream; hover of primary */
+  --ht-accent: #c9561a;
+  --ht-yellow: #fde253; /* hero badge, highlight */
+  --ht-bg-from: #fff7f0; /* page background */
+  --ht-bg-to: #fff1e7; /* cream: selected fills, guide box, focus ring */
+  --ht-ink: #3b2a1e; /* headings and body text */
+  --ht-brown: #6c4e39; /* brand brown: dashboard sidebar, text on yellow */
+  --ht-text-2: #5e534b; /* field labels */
+  --ht-text-3: #7a6f68; /* secondary text */
+  --ht-text-4: #9a8e85; /* hints, placeholders */
+  --ht-border: #ece4dc; /* inputs and unselected chips */
+  --ht-check-border: #cfc4ba; /* empty checkbox */
+  --ht-divider: #f1ebe5;
+  --ht-row-divider: #f6f1ec;
+  --ht-field: #fdfbf9; /* input background */
+  --ht-segment: #efe8e1; /* segmented control track */
+  --ht-line: #00b900; /* LINE green */
+  --ht-success: #2e7d32;
+  --ht-success-bg: #e8f5e9;
+  --ht-error: #e53935;
+  --ht-error-bg: #fdecea;
+  --ht-returning: #1d8795; /* teal: pending review */
+  --ht-returning-bg: #e2f5f7;
+  --ht-warning: #8a5b00; /* warranty expiring soon */
+  --ht-warning-bg: #fef4be;
+  --ht-muted: #9ca3af; /* inactive bottom-nav tab */
+
+  /* Channel colors */
+  --ht-shopee: #ee4d2d;
+  --ht-shopee-bg: #fff0ee;
+  --ht-lazada: #0f146d;
+  --ht-lazada-bg: #eef0ff;
+  --ht-tiktok: #111111;
+  --ht-tiktok-bg: #f5f5f5;
+  --ht-homepro: #2e7d32;
+  --ht-homepro-bg: #e8f5e9;
+  --ht-makro: #1b5e20;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-thai: var(--font-mitr);
+  --font-plex: var(--font-plex-mono);
+
+  --color-ht-primary: var(--ht-primary);
+  --color-ht-deep: var(--ht-deep);
+  --color-ht-accent: var(--ht-accent);
+  --color-ht-line: var(--ht-line);
+  --color-ht-success: var(--ht-success);
+  --color-ht-error: var(--ht-error);
+}
+
+/* Light only. The pages hard-code white cards and brand colors, so a dark
+   --foreground (which iOS/Android dark mode used to switch on) turned every
+   label and input nearly white-on-white inside the LINE webview. */
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-mitr), system-ui, sans-serif;
+}
+
+/* Order numbers, counters and channel badges. */
+.font-ht-mono {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+}
