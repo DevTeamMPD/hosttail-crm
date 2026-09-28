@@ -140,7 +140,7 @@ export function StickyBar({ children, aboveNav }: { children: ReactNode; aboveNa
   return (
     <div
       className="fixed inset-x-0 z-10 flex justify-center"
-      style={{ bottom: aboveNav ? 'calc(62px + env(safe-area-inset-bottom))' : 0 }}
+      style={{ bottom: aboveNav ? 'calc(70px + env(safe-area-inset-bottom))' : 0 }}
     >
       <div
         className="w-full max-w-md px-4 pt-3.5"

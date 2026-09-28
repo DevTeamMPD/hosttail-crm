@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import Image from 'next/image'
+import { Camera, ImageIcon } from 'lucide-react'
 import { liffFetch } from '@/lib/liff/client'
 import { createClient } from '@/lib/supabase/client'
 
@@ -111,35 +112,69 @@ export function ReceiptUpload({ hasFile, onUploaded, onClear, disabled, error }:
           </button>
         </div>
       ) : (
-        <label
-          className="flex h-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] border-dashed border-[var(--ht-check-border)] bg-[var(--ht-field)] text-center text-[13px] text-[var(--ht-text-3)]"
-          style={disabled ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-        >
+        <div className="flex flex-col gap-2 rounded-[14px] border-[1.5px] border-dashed border-[var(--ht-check-border)] bg-[var(--ht-field)] p-3">
           {status === 'uploading' ? (
-            <span className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--ht-primary)] border-t-transparent" />
+            <div className="flex h-[88px] items-center justify-center gap-2 text-[13px] text-[var(--ht-text-3)]">
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--ht-primary)] border-t-transparent" />
+              กำลังอัปโหลด...
+            </div>
           ) : (
             <>
-              <span className="font-medium text-[var(--ht-deep)]">+ ถ่ายรูป / เลือกรูปใบเสร็จ</span>
-              <span className="text-xs text-[var(--ht-text-4)]">JPEG, PNG, WEBP, HEIC ไม่เกิน 8MB</span>
+              <div className="grid grid-cols-2 gap-2">
+                {/* Two inputs on purpose: `capture` forces the camera on
+                    phones, so the gallery button must not carry it. */}
+                <PickButton label="ถ่ายรูป" icon={<Camera size={20} aria-hidden />} capture disabled={disabled} onFile={handleFile} />
+                <PickButton label="เลือกจากคลังภาพ" icon={<ImageIcon size={20} aria-hidden />} disabled={disabled} onFile={handleFile} inputRef={inputRef} />
+              </div>
+              <span className="text-center text-xs text-[var(--ht-text-4)]">JPEG, PNG, WEBP, HEIC ไม่เกิน 8MB</span>
             </>
           )}
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic"
-            capture="environment"
-            className="sr-only"
-            disabled={disabled || status === 'uploading'}
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) handleFile(file)
-            }}
-          />
-        </label>
+        </div>
       )}
 
       {(message || error) && <p className="text-xs text-[var(--ht-error)]">{message ?? error}</p>}
       {hasFile && !message && <p className="text-xs text-[var(--ht-success)]">แนบรูปแล้ว</p>}
     </div>
+  )
+}
+
+const ACCEPT = 'image/jpeg,image/png,image/webp,image/heic'
+
+function PickButton({
+  label,
+  icon,
+  capture,
+  disabled,
+  onFile,
+  inputRef,
+}: {
+  label: string
+  icon: React.ReactNode
+  capture?: boolean
+  disabled?: boolean
+  onFile: (file: File) => void
+  inputRef?: React.RefObject<HTMLInputElement | null>
+}) {
+  return (
+    <label
+      className="flex h-[60px] cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-[1.5px] border-[var(--ht-border)] bg-white text-[13px] font-medium text-[var(--ht-deep)] active:bg-[var(--ht-bg-to)]"
+      style={disabled ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+    >
+      {icon}
+      {label}
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ACCEPT}
+        capture={capture ? 'environment' : undefined}
+        className="sr-only"
+        disabled={disabled}
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) onFile(file)
+          e.target.value = ''
+        }}
+      />
+    </label>
   )
 }

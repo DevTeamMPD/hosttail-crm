@@ -92,10 +92,6 @@ export default function HomePage() {
               className="flex items-center gap-3 px-4 py-3.5"
               style={i < listed.length - 1 ? { borderBottom: '1px solid var(--ht-row-divider)' } : undefined}
             >
-              <div
-                className="h-11 w-11 shrink-0 rounded-xl"
-                style={{ background: 'repeating-linear-gradient(135deg,#f7efe8 0 6px,#f1e6dc 6px 12px)' }}
-              />
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="truncate text-sm font-medium text-[var(--ht-ink)]">{item.product_name ?? item.sku ?? 'สินค้า'}</span>
                 <span className="text-xs text-[var(--ht-text-4)]">ถึง {formatThaiDate(item.warranty_end)}</span>

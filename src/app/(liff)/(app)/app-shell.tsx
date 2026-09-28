@@ -34,7 +34,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   else
     body = (
       <MemberProvider member={state.member} setMember={setMember}>
-        <div className="flex-1 pb-24">{children}</div>
+        <div className="flex-1 pb-28">{children}</div>
         <BottomNav />
       </MemberProvider>
     )
