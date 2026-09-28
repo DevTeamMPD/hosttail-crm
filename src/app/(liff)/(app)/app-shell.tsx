@@ -6,6 +6,7 @@ import { useLiffGate } from '@/lib/liff/use-liff-gate'
 import { LiffLoadingScreen, LiffErrorScreen } from '@/lib/liff/liff-gate-screens'
 import { MemberProvider } from './member-context'
 import { BottomNav } from './bottom-nav'
+import { BrandHeader } from '../brand-header'
 
 /**
  * Shared shell for the 4 bottom-nav tabs (/home, /profile, /warranty,
@@ -27,16 +28,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (incomplete) router.replace('/register')
   }, [incomplete, router])
 
-  if (state.phase === 'checking' || state.phase === 'redirecting') return <LiffLoadingScreen />
-  if (state.phase === 'error') return <LiffErrorScreen message={state.message} onRetry={retry} />
-  if (incomplete) return <LiffLoadingScreen /> // brief flash while router.replace('/register') takes effect
-
-  return (
-    <MemberProvider member={state.member} setMember={setMember}>
-      <div className="flex min-h-screen flex-col">
+  let body: React.ReactNode
+  if (state.phase === 'checking' || state.phase === 'redirecting') body = <LiffLoadingScreen />
+  else if (state.phase === 'error') body = <LiffErrorScreen message={state.message} onRetry={retry} />
+  else if (incomplete) body = <LiffLoadingScreen /> // brief flash while router.replace('/register') takes effect
+  else
+    body = (
+      <MemberProvider member={state.member} setMember={setMember}>
         <div className="flex-1 pb-24">{children}</div>
         <BottomNav />
-      </div>
-    </MemberProvider>
+      </MemberProvider>
+    )
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <BrandHeader />
+      {body}
+    </div>
   )
 }

@@ -32,6 +32,8 @@ interface FormState {
   channel: OrderChannel
   orderRef: string
   receiptObjectKey: string | null
+  /** Facebook/LINE: the customer confirms the order is under the phone above. */
+  phoneConfirmed: boolean
   termsAccepted: boolean
 }
 
@@ -50,6 +52,7 @@ export function RegisterForm({ member, provinces, termsBody }: Props) {
     channel: 'shopee',
     orderRef: '',
     receiptObjectKey: null,
+    phoneConfirmed: false,
     termsAccepted: false,
   })
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -86,13 +89,15 @@ export function RegisterForm({ member, provinces, termsBody }: Props) {
     }
 
     const parsed = SubmitRegistrationSchema.safeParse(payload)
-    if (!parsed.success) {
+    const needsPhoneConfirm = meta.refKind === 'phone' && !form.phoneConfirmed
+    if (!parsed.success || needsPhoneConfirm) {
       const fieldErrors: FieldErrors = {}
-      for (const issue of parsed.error.issues) {
+      for (const issue of parsed.success ? [] : parsed.error.issues) {
         const key = issue.path[0] as keyof FormState | 'orderRef'
         if (key === 'orderRef') fieldErrors.orderRef = issue.message
         else fieldErrors[key as keyof FormState] = issue.message
       }
+      if (needsPhoneConfirm) fieldErrors.phoneConfirmed = 'กรุณายืนยันคำสั่งซื้อด้วยเบอร์โทร'
       setErrors(fieldErrors)
       // Scroll to the first invalid field, mirroring the legacy page's UX.
       const firstKey = Object.keys(fieldErrors)[0]
@@ -192,9 +197,23 @@ export function RegisterForm({ member, provinces, termsBody }: Props) {
           </div>
         )}
         {meta.refKind === 'phone' && (
-          <p className="text-xs text-gray-500">
-            ใช้เบอร์โทรศัพท์ที่กรอกด้านบน ({form.phone || '—'}) ในการค้นหาคำสั่งซื้อ
-          </p>
+          <div className="space-y-1" id="field-phoneConfirmed">
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-800">
+              <input
+                type="checkbox"
+                checked={form.phoneConfirmed}
+                onChange={(e) => set('phoneConfirmed', e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--ht-primary)]"
+              />
+              <span>
+                ยืนยันคำสั่งซื้อด้วยเบอร์โทรกับที่สมัครสมาชิก
+                <span className="block text-xs text-gray-500">เบอร์โทร: {form.phone || '—'}</span>
+              </span>
+            </label>
+            {errors.phoneConfirmed && (
+              <p className="text-xs" style={{ color: 'var(--ht-error)' }}>{errors.phoneConfirmed}</p>
+            )}
+          </div>
         )}
 
         {meta.requiresReceipt && (

@@ -15,16 +15,15 @@ const OFFLINE_CHANNELS: readonly OrderChannel[] = ['homepro', 'makropro', 'recei
  * The legacy page promised this guide ("ดูวิธีหาเลขคำสั่งซื้อ") but only ever
  * shipped it as two ~2.5MB JPEGs (4500x4500px source) loaded eagerly at the
  * top of the page on every visit, regardless of which channel the customer
- * picked. Fixed two ways here: (1) collapsed by default and the <Image> is
- * not even mounted until expanded, so nothing downloads unless the customer
- * actually asks for it; (2) next/image serves it resized + as WebP/AVIF to
- * capable browsers automatically, instead of the raw 4500px JPEG.
+ * picked. Open by default so customers see it without hunting for it;
+ * next/image serves it resized + as WebP/AVIF instead of the raw 4500px JPEG,
+ * and only the image for the selected channel type is loaded.
  *
  * Not shown at all for facebook/line -- those channels use the customer's
  * own phone number, not an order id, so this guide doesn't apply.
  */
 export function GuideAccordion({ channel }: Props) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
 
   const isOnline = ONLINE_CHANNELS.includes(channel)
   const isOffline = OFFLINE_CHANNELS.includes(channel)
