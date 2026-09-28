@@ -6,6 +6,7 @@ import { requireRole, NotAuthorizedError } from '@/lib/session'
 import { bindPlatformAccount, type BindOutcome } from '@/lib/orders/bind-account'
 import { CONNECTABLE_PLATFORMS, listBoundOrders, type ConnectablePlatform } from '@/lib/orders/bound-orders'
 import { resolveByOrderRef } from '@/lib/orders/resolve'
+import { CHANNELS } from '@/lib/brand'
 
 export interface ConnectPreview {
   shop: string
@@ -188,6 +189,118 @@ export async function registerBoundOrder(memberId: string, orderNo: string): Pro
 
     revalidatePath(`/customers/${memberId}`)
     return { ok: true, message: `ลงทะเบียนรับประกันบิล ${order.billNo} แล้ว` }
+  } catch (err) {
+    return fail(err)
+  }
+}
+
+export interface ManualWarrantyItem {
+  sku: string
+  productName: string
+  quantity: number
+  /** Line total in baht; blank counts as 0. */
+  price: number | null
+}
+
+export interface ManualWarrantyInput {
+  /** A pending registration of this member to approve; null creates a new one. */
+  registrationId: string | null
+  channel: string
+  orderNo: string
+  items: ManualWarrantyItem[]
+}
+
+/**
+ * Last resort when an order cannot be found in sales_transaction at all (a
+ * typo the customer cannot correct, an order the ETL never picked up): the
+ * admin types the order, SKUs, products and prices off the evidence they have.
+ * Either approves one of the member's pending registrations or records a new
+ * one. Nothing in sales_transaction is touched; the prices are kept on the
+ * registration (matched_skus) and their sum is the order amount.
+ */
+export async function addManualWarranty(memberId: string, input: ManualWarrantyInput): Promise<ConnectResult> {
+  try {
+    const staff = await requireRole('marketing')
+    const supabase = createAdminClient()
+
+    const items = input.items
+      .map((i) => ({
+        sku: i.sku.trim() || null,
+        product_name: i.productName.trim() || null,
+        quantity: Number(i.quantity),
+        price: i.price === null ? null : Number(i.price),
+      }))
+      .filter((i) => i.sku || i.product_name)
+    if (!items.length) return { ok: false, message: 'กรุณากรอก SKU หรือชื่อสินค้าอย่างน้อย 1 รายการ' }
+    if (items.some((i) => !Number.isFinite(i.quantity) || i.quantity <= 0)) return { ok: false, message: 'จำนวนต้องมากกว่า 0' }
+    if (items.some((i) => i.price !== null && (!Number.isFinite(i.price) || i.price < 0))) {
+      return { ok: false, message: 'ราคาไม่ถูกต้อง' }
+    }
+    const amount = items.reduce((sum, i) => sum + (i.price ?? 0), 0)
+    let orderNo = input.orderNo.trim()
+
+    let registrationId = input.registrationId
+    let created = false
+    if (registrationId) {
+      const { data: reg } = await supabase
+        .from('ht_warranty_registrations')
+        .select('id, member_id, status, order_ref_raw')
+        .eq('id', registrationId)
+        .limit(1)
+        .maybeSingle()
+      if (!reg || reg.member_id !== memberId) return { ok: false, message: 'ไม่พบรายการนี้ของลูกค้าคนนี้' }
+      if (reg.status !== 'pending') return { ok: false, message: 'รายการนี้ถูกดำเนินการไปแล้ว' }
+      orderNo ||= reg.order_ref_raw
+      if (!orderNo) return { ok: false, message: 'กรุณากรอกเลขคำสั่งซื้อ' }
+    } else {
+      if (!CHANNELS.some((c) => c.value === input.channel)) return { ok: false, message: 'กรุณาเลือกช่องทาง' }
+      if (!orderNo) return { ok: false, message: 'กรุณากรอกเลขคำสั่งซื้อ' }
+      const { data: reg, error: regErr } = await supabase
+        .from('ht_warranty_registrations')
+        .insert({
+          member_id: memberId,
+          channel: input.channel,
+          order_ref_kind: 'order_id',
+          order_ref_raw: orderNo,
+          requires_receipt: false,
+          source: 'manual',
+        })
+        .select('id')
+        .single()
+      if (regErr) {
+        if (regErr.code === '23505') {
+          return { ok: false, message: 'เลขคำสั่งซื้อนี้มีรายการของลูกค้าคนนี้อยู่แล้ว — เลือกรายการนั้นแทนการสร้างใหม่' }
+        }
+        return { ok: false, message: `สร้างรายการไม่สำเร็จ: ${regErr.message}` }
+      }
+      registrationId = reg.id
+      created = true
+    }
+
+    const { error } = await supabase.rpc('ht_finalize_registration', {
+      p_registration_id: registrationId,
+      p_matched_order_no: orderNo,
+      p_order_amount: amount,
+      p_items: items,
+      p_reviewed_by: staff.staffId,
+      p_note: 'แอดมินกรอกข้อมูลเอง (หาในระบบขายไม่เจอ)',
+    })
+    if (error) {
+      if (created) await supabase.from('ht_warranty_registrations').delete().eq('id', registrationId)
+      return { ok: false, message: `บันทึกไม่สำเร็จ: ${error.message}` }
+    }
+
+    await supabase.from('ht_audit_log').insert({
+      actor_id: staff.staffId,
+      action: 'warranty_added_manual',
+      entity: 'ht_warranty_registrations',
+      entity_id: registrationId,
+      after: { member_id: memberId, order_no: orderNo, amount, items, new_registration: created },
+    })
+
+    revalidatePath(`/customers/${memberId}`)
+    revalidatePath('/approvals')
+    return { ok: true, message: `บันทึกรับประกันแล้ว · ${items.length} รายการ${amount ? ` · ฿${amount.toLocaleString()}` : ''}` }
   } catch (err) {
     return fail(err)
   }
