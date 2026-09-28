@@ -301,7 +301,7 @@ export function RegisterForm({ member, provinces, termsBody }: Props) {
         </h1>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-[var(--ht-yellow)] px-3 py-1 text-[13px] font-medium text-[var(--ht-brown)]">
-            รับประกัน 12 เดือน
+            รับประกัน 365 วัน
           </span>
           <span className="text-[13px] opacity-90">ใช้เวลาประมาณ 2 นาที</span>
         </div>
@@ -391,7 +391,7 @@ export function RegisterForm({ member, provinces, termsBody }: Props) {
           <CheckBox checked={form.termsAccepted} />
           <span className="text-sm leading-normal text-[var(--ht-ink)]">
             ฉันได้อ่านและยอมรับ{' '}
-            <span className="font-semibold text-[var(--ht-deep)] underline">เงื่อนไขการรับประกันสินค้า (รับประกัน 12 เดือน)</span>
+            <span className="font-semibold text-[var(--ht-deep)] underline">เงื่อนไขการรับประกันสินค้า (รับประกัน 365 วันต่อชิ้น)</span>
           </span>
         </button>
         {errors.termsAccepted && <FieldError>{errors.termsAccepted}</FieldError>}
