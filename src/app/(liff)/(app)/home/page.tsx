@@ -37,17 +37,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div
-        className="rounded-2xl p-4 text-white shadow-sm"
-        style={{ background: 'linear-gradient(135deg, var(--ht-primary) 0%, var(--ht-deep) 100%)' }}
-      >
-        <p className="text-xs opacity-90">แต้มสะสมของคุณ</p>
-        <p className="mt-1 text-3xl font-bold">{member.points_balance.toLocaleString()} แต้ม</p>
-        <Link href="/privileges" className="mt-2 inline-block text-xs underline underline-offset-2 opacity-90">
-          ดูประวัติแต้ม &amp; สิทธิพิเศษ →
-        </Link>
-      </div>
-
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-white p-4 text-center shadow-sm">
           <p className="text-2xl font-bold" style={{ color: 'var(--ht-success)' }}>

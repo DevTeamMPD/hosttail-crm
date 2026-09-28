@@ -2,13 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, User, ShieldCheck, Gift } from 'lucide-react'
+import { Home, User, ShieldCheck } from 'lucide-react'
 
 const TABS = [
   { href: '/home', label: 'หน้าหลัก', icon: Home },
   { href: '/profile', label: 'ข้อมูลสมาชิก', icon: User },
   { href: '/warranty', label: 'การรับประกัน', icon: ShieldCheck },
-  { href: '/privileges', label: 'สิทธิพิเศษ', icon: Gift },
+  // สิทธิพิเศษ (points) is hidden in Phase 1 -- see docs/PHASE1_PLAN.md.
 ] as const
 
 /**

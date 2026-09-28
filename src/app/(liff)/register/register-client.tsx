@@ -1,17 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useLiffGate } from '@/lib/liff/use-liff-gate'
 import { LiffLoadingScreen, LiffErrorScreen } from '@/lib/liff/liff-gate-screens'
 import { RegisterForm } from './register-form'
-import { CheckLegacyMember } from './check-legacy-member'
 import type { ProvinceOption } from './province-select'
 
 interface Props {
   provinces: ProvinceOption[]
   termsBody: string
+  /** `?new=1`, read on the server so it is right on the first render. */
+  forceForm: boolean
 }
 
 /**
@@ -23,17 +24,13 @@ interface Props {
  * /home instead of seeing the form again. Our own "add a new order" CTAs
  * (Home/Warranty tabs) link here with `?new=1` to opt out of that redirect.
  */
-export function RegisterClient({ provinces, termsBody }: Props) {
+export function RegisterClient({ provinces, termsBody, forceForm }: Props) {
   const { state, retry } = useLiffGate()
   const router = useRouter()
-  // Read directly off window (lazy initializer, not useEffect) rather than
-  // useSearchParams() -- this component never renders anything that depends
-  // on the flag until the async LIFF boot resolves (server-side it's always
-  // the loading screen regardless), so there's no hydration mismatch, and no
-  // need for the <Suspense> boundary useSearchParams() would require.
-  const [forceForm] = useState(
-    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('new') === '1'
-  )
+  // forceForm comes from the server page's searchParams. It used to be read
+  // off window.location on first render, but on a client-side <Link> to
+  // /register?new=1 Next.js has not updated the URL yet at that point, so the
+  // flag read false and returning members were bounced straight back to /home.
 
   const isReady = state.phase === 'ready'
   const member = isReady ? state.member : null
@@ -77,8 +74,8 @@ export function RegisterClient({ provinces, termsBody }: Props) {
         </div>
       </div>
 
-      {!isReturning && <CheckLegacyMember />}
-
+      {/* Legacy-account claims (CheckLegacyMember) are not used in Phase 1 --
+          see docs/PHASE1_PLAN.md. */}
       <RegisterForm member={state.member} provinces={provinces} termsBody={termsBody} />
     </div>
   )

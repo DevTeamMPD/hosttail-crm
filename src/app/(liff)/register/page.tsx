@@ -13,7 +13,12 @@ export const metadata: Metadata = {
 // restricts SELECT to staff; a LIFF customer has no Supabase Auth session).
 export const dynamic = 'force-dynamic'
 
-export default async function RegisterPage() {
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+  const { new: newParam } = await searchParams
   const supabase = createAdminClient()
 
   const [{ data: provinces }, { data: termsDoc }] = await Promise.all([
@@ -41,7 +46,11 @@ export default async function RegisterPage() {
           🛡️ ลงทะเบียนรับประกันสินค้า
         </span>
       </header>
-      <RegisterClient provinces={provinces ?? []} termsBody={termsDoc?.body_md ?? ''} />
+      <RegisterClient
+        provinces={provinces ?? []}
+        termsBody={termsDoc?.body_md ?? ''}
+        forceForm={newParam === '1'}
+      />
     </>
   )
 }

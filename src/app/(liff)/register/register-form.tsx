@@ -137,7 +137,7 @@ export function RegisterForm({ member, provinces, termsBody }: Props) {
           className="rounded-xl border px-4 py-3 text-sm"
           style={{ background: 'var(--ht-returning-bg)', borderColor: 'var(--ht-returning)', color: 'var(--ht-returning)' }}
         >
-          ยินดีต้อนรับกลับมา, {member.full_name} · แต้มสะสม {member.points_balance.toLocaleString()} แต้ม
+          ยินดีต้อนรับกลับมา, {member.full_name}
         </div>
       )}
 
