@@ -135,7 +135,17 @@ export async function registerBoundOrder(memberId: string, orderNo: string): Pro
     if (!order.channel) return { ok: false, message: `ช่องทาง ${order.shop} ยังลงทะเบียนรับประกันไม่ได้` }
 
     const outcome = await resolveByOrderRef(supabase, order.billNo)
-    if (outcome.status !== 'matched') return { ok: false, message: 'ตรวจบิลในระบบขายไม่ผ่าน' }
+    if (outcome.status !== 'matched') {
+      const why =
+        outcome.status === 'ambiguous'
+          ? `เลขนี้ตรงกับหลายบิลที่ห่างกันเกิน 60 วัน (${outcome.candidates.map((c) => c.orderNo).join(', ')}) — อนุมัติผ่านหน้ารออนุมัติแทน`
+          : outcome.status === 'cancelled'
+            ? 'บิลนี้ถูกยกเลิกแล้ว'
+            : outcome.status === 'unsettled'
+              ? 'บิลนี้ยังไม่ตัดยอด รอ ETL รอบถัดไป'
+              : 'ไม่พบบิลนี้ในระบบขาย'
+      return { ok: false, message: why }
+    }
 
     const { data: reg, error: regErr } = await supabase
       .from('ht_warranty_registrations')
