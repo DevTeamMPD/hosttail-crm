@@ -14,6 +14,7 @@ export const ORDER_CHANNELS = [
   'homepro',
   'makropro',
   'receipt',
+  'event',
 ] as const
 
 export type OrderChannel = (typeof ORDER_CHANNELS)[number]
@@ -117,6 +118,21 @@ export const CHANNELS: readonly ChannelMeta[] = [
     refKind: 'order_id',
     refLabel: 'เลขที่ใบเสร็จ',
     refPlaceholder: 'เช่น INV-2025-00123',
+    requiresReceipt: true,
+  },
+  {
+    // Brand receipts from trade shows (Event Pet Expo, Event BBB, ...). These
+    // do exist in sales_transaction (project Head-Office, customer_group1
+    // 'Event'), so the admin approves against the real bill -- see
+    // resolveByOrderRef's 'event' scope.
+    value: 'event',
+    label: 'งาน Event',
+    icon: '🎪',
+    color: '#6a1b9a',
+    bg: '#f3e5f5',
+    refKind: 'order_id',
+    refLabel: 'เลขที่ใบเสร็จ (งาน Event)',
+    refPlaceholder: 'เช่น 901520260502-0009 หรือ 267122',
     requiresReceipt: true,
   },
 ]

@@ -8,6 +8,10 @@ import { roleAtLeast } from '@/lib/permissions'
 import { formatThaiDate, daysUntil } from '@/lib/format-th'
 import { channelMeta, PET_TYPES } from '@/lib/brand'
 import { maskPhone } from '@/lib/mask'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { listBoundOrders } from '@/lib/orders/bound-orders'
+import { normalizeOrderKey } from '@/lib/orders/normalize'
+import { ConnectAccount, RegisterOrderButton, RevokeBinding } from './account-panel'
 
 export const metadata: Metadata = { title: 'รายละเอียดลูกค้า — Hosttail CRM' }
 export const dynamic = 'force-dynamic'
@@ -29,6 +33,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const { id } = await params
   const session = await getStaffSession()
   const canSeePhone = roleAtLeast(session?.role, 'marketing')
+  const canRegister = roleAtLeast(session?.role, 'marketing')
+  const isAdmin = roleAtLeast(session?.role, 'admin')
   const supabase = await createClient()
 
   const { data: member } = await supabase
@@ -70,6 +76,15 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         : Promise.resolve({ data: null }),
       supabase.from('ht_member_consents').select('kind, granted, source').eq('member_id', id),
     ])
+
+  // Orders placed from this member's bound accounts, and which of them are
+  // already registered for warranty (by matched bill, or by the id typed).
+  const boundOrders = await listBoundOrders(createAdminClient(), id)
+  const registeredOrderNos = new Set((regs ?? []).map((r) => r.matched_order_no).filter(Boolean))
+  const registeredKeys = new Set((regs ?? []).map((r) => normalizeOrderKey(r.order_ref_raw)).filter(Boolean))
+  const isRegistered = (o: { orderNo: string; billNo: string }) =>
+    registeredOrderNos.has(o.orderNo) || registeredKeys.has(normalizeOrderKey(o.billNo))
+  const activeBindings = (bindings ?? []).filter((b) => b.status === 'active')
 
   return (
     <div className="space-y-4">
@@ -175,9 +190,53 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         )}
       </section>
 
+      {activeBindings.length > 0 && (
+        <section className="rounded-2xl border border-gray-200 bg-white">
+          <SectionHeader title="ออเดอร์จากบัญชีที่ผูกไว้" count={boundOrders.length} />
+          {!boundOrders.length ? (
+            <Empty text="ยังไม่พบออเดอร์ในระบบขายจากบัญชีที่ผูกไว้" />
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {boundOrders.map((o) => {
+                const done = isRegistered(o)
+                return (
+                  <li key={o.orderNo} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm text-gray-800">
+                        {o.shop} · <span className="font-mono">{o.billNo}</span>
+                        {o.amount ? ` · ฿${o.amount.toLocaleString()}` : ''}
+                      </p>
+                      <p className="truncate text-xs text-gray-400">
+                        {o.txnDate ? formatThaiDate(o.txnDate) : '—'} · {o.products.join(', ') || 'ไม่มีชื่อสินค้า'}
+                      </p>
+                    </div>
+                    {done ? (
+                      <Tag text="ลงทะเบียนแล้ว" color="var(--ht-success)" bg="var(--ht-success-bg)" />
+                    ) : o.cancelled ? (
+                      <Tag text="ยกเลิก" color="#6b7280" bg="#f3f4f6" />
+                    ) : !o.settled ? (
+                      <Tag text="รอตัดยอด" color="var(--ht-warning)" bg="var(--ht-warning-bg)" />
+                    ) : canRegister ? (
+                      <RegisterOrderButton memberId={id} orderNo={o.orderNo} />
+                    ) : (
+                      <Tag text="ยังไม่ลงทะเบียน" color="#6b7280" bg="#f3f4f6" />
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-gray-200 bg-white">
-          <SectionHeader title="บัญชีแพลตฟอร์มที่ผูกไว้" count={bindings?.length ?? 0} />
+          <SectionHeader title="บัญชีแพลตฟอร์มที่ผูกไว้" count={activeBindings.length} />
+          {isAdmin && !member.is_test && (
+            <div className="border-b border-gray-100 px-4 py-3">
+              <ConnectAccount memberId={id} />
+            </div>
+          )}
           {!bindings?.length ? (
             <Empty text="ยังไม่ผูกบัญชี — ออเดอร์ถัดไปต้องกรอกเลขเอง" />
           ) : (
@@ -192,11 +251,14 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                       {b.account_no} · ผูกเมื่อ {formatThaiDate(b.bound_at)} ({b.bound_via})
                     </p>
                   </div>
-                  {b.status === 'active' ? (
-                    <Tag text="ใช้งาน" color="var(--ht-success)" bg="var(--ht-success-bg)" />
-                  ) : (
-                    <Tag text="เพิกถอนแล้ว" color="#6b7280" bg="#f3f4f6" />
-                  )}
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {b.status === 'active' ? (
+                      <Tag text="ใช้งาน" color="var(--ht-success)" bg="var(--ht-success-bg)" />
+                    ) : (
+                      <Tag text="เพิกถอนแล้ว" color="#6b7280" bg="#f3f4f6" />
+                    )}
+                    {isAdmin && b.status === 'active' && <RevokeBinding bindingId={b.id} memberId={id} />}
+                  </div>
                 </li>
               ))}
             </ul>

@@ -206,6 +206,23 @@ export async function submitRegistration(
   // per the confirmed business rule (auto-match may still run to help the
   // admin, but points/warranty only activate once an admin approves).
   if (meta.requiresReceipt) {
+    // Event receipts are the one offline channel that exists in
+    // sales_transaction, so look it up now and leave the result as a hint on
+    // the approvals card. Still never auto-approves.
+    if (input.channel === 'event') {
+      try {
+        const hint = await resolveByOrderRef(supabase, input.orderRef, 'event')
+        await supabase
+          .from('ht_warranty_registrations')
+          .update({
+            link_status: hint.status === 'matched' || hint.status === 'ambiguous' ? 'pending_review' : 'not_found',
+            auto_match_candidates: JSON.parse(JSON.stringify([hint])),
+          })
+          .eq('id', reg.id)
+      } catch (err) {
+        console.error('[submitRegistration] event receipt lookup failed', err)
+      }
+    }
     return {
       registrationId: reg.id,
       status: 'pending',

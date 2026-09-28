@@ -12,8 +12,19 @@ import { normalizePhoneTh } from '@/lib/phone'
 
 type Client = SupabaseClient<Database>
 
-const PROJECT = 'Hosttail'
 const CANCELLED = 'Cancelled'
+
+/**
+ * Which slice of sales_transaction a reference is looked up in.
+ *   online -- project 'Hosttail': Shopee/Lazada/TikTok/Facebook/Line/Website.
+ *   event  -- brand receipts sold at trade shows. These are booked under
+ *             project 'Head-Office' with customer_group1 'Event'; the receipt
+ *             number is order_no ('901520260502-0009') and bill_no is a 6-digit
+ *             number ('267122'). Restricted to customer_group1 'Event' so a
+ *             receipt can never match a Head-Office wholesale or modern-trade
+ *             bill.
+ */
+export type ResolveScope = 'online' | 'event'
 
 export interface OrderLine {
   order_no: string
@@ -60,18 +71,24 @@ const SELECT =
  */
 export async function resolveByOrderRef(
   supabase: Client,
-  rawRef: string
+  rawRef: string,
+  scope: ResolveScope = 'online'
 ): Promise<ResolveOutcome> {
   const key = normalizeOrderKey(rawRef)
   if (!key) return { status: 'not_found' }
+  // normalizeOrderKey drops dashes, but event receipt numbers are stored WITH
+  // them ('901520260502-0009'), so also probe the trimmed, uppercased input.
+  const asTyped = String(rawRef).trim().replace(/^#+\s*/, '').toUpperCase()
+  const keys = [...new Set([key, asTyped].filter(Boolean))]
 
   // bill_no first: it carries the id the customer actually sees.
   for (const column of ['bill_no', 'order_no'] as const) {
-    const { data, error } = await supabase
-      .from('sales_transaction')
-      .select(SELECT)
-      .eq('project', PROJECT)
-      .eq(column, key)
+    let query = supabase.from('sales_transaction').select(SELECT).in(column, keys)
+    query =
+      scope === 'event'
+        ? query.eq('project', 'Head-Office').eq('customer_group1', 'Event')
+        : query.eq('project', 'Hosttail')
+    const { data, error } = await query
     if (error) throw new Error(`resolveByOrderRef(${column}): ${error.message}`)
     if (!data?.length) continue
 
@@ -129,17 +146,20 @@ export async function resolveByPhone(
   if (!phone) return [{ status: 'not_found' }]
 
   // order_tracking stores the same number several ways ('0812345678',
-  // '66812345678', '081-234-5678'), so probe the known variants.
-  const variants = [phone, `66${phone.slice(1)}`, `(+66)${phone.slice(1)}`]
+  // '66812345678', '094-6565566'). Fetch by the last 4 digits and compare in
+  // full after normalising -- an .in() over fixed variants missed every dashed
+  // row (1 in 5 of a sampled FB batch). Same approach as bind-account.ts.
   const { data, error } = await supabase
     .from('order_tracking')
     .select('online_order,phone,platform,shop')
-    .in('phone', variants)
+    .like('phone', `%${phone.slice(-4)}`)
     .ilike('shop', '%hosttail%')
+    .limit(500)
   if (error) throw new Error(`resolveByPhone: ${error.message}`)
-  if (!data?.length) return [{ status: 'not_found' }]
+  const own = (data ?? []).filter(r => normalizePhoneTh(r.phone) === phone)
+  if (!own.length) return [{ status: 'not_found' }]
 
-  const refs = [...new Set(data.map(r => r.online_order).filter(Boolean) as string[])]
+  const refs = [...new Set(own.map(r => r.online_order).filter(Boolean) as string[])]
   const out: ResolveOutcome[] = []
   for (const ref of refs) out.push(await resolveByOrderRef(supabase, ref))
   return out

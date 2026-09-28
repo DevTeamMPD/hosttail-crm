@@ -33,6 +33,7 @@ export const ORDER_CHANNELS = [
   'homepro',
   'makropro',
   'receipt',
+  'event',
 ] as const
 
 export type OrderChannel = (typeof ORDER_CHANNELS)[number]
@@ -41,7 +42,7 @@ export type OrderChannel = (typeof ORDER_CHANNELS)[number]
 export const PHONE_CHANNELS: readonly OrderChannel[] = ['facebook', 'line']
 
 /** Channels that always require a receipt photo and admin approval. */
-export const OFFLINE_CHANNELS: readonly OrderChannel[] = ['homepro', 'makropro', 'receipt']
+export const OFFLINE_CHANNELS: readonly OrderChannel[] = ['homepro', 'makropro', 'receipt', 'event']
 
 export function isPhoneChannel(c: OrderChannel): boolean {
   return PHONE_CHANNELS.includes(c)

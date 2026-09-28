@@ -17,7 +17,16 @@ const PAGE_SIZE = 25
 const PET_LABEL = new Map<string, string>(PET_TYPES.map((p) => [p.value, p.label]))
 
 interface Props {
-  searchParams: Promise<{ q?: string; page?: string; source?: string; bound?: string }>
+  searchParams: Promise<{ q?: string; page?: string; source?: string; bound?: string; from?: string; to?: string }>
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+/** The day after a YYYY-MM-DD date, so a `to` filter includes that whole day. */
+function nextDay(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().slice(0, 10)
 }
 
 export default async function CustomersPage({ searchParams }: Props) {
@@ -48,6 +57,11 @@ export default async function CustomersPage({ searchParams }: Props) {
     query = digits.length >= 4 ? query.ilike('phone', `%${digits}%`) : query.ilike('full_name', `%${q}%`)
   }
   if (params.source) query = query.eq('source', params.source)
+  // Dates are Bangkok calendar days, whatever timezone the server runs in.
+  const from = params.from && ISO_DATE.test(params.from) ? params.from : ''
+  const to = params.to && ISO_DATE.test(params.to) ? params.to : ''
+  if (from) query = query.gte('registered_at', `${from}T00:00:00+07:00`)
+  if (to) query = query.lt('registered_at', `${nextDay(to)}T00:00:00+07:00`)
   if (params.bound === 'no') query = query.eq('is_test', false)
 
   const { data: members, count, error } = await query
@@ -77,10 +91,11 @@ export default async function CustomersPage({ searchParams }: Props) {
           <h1 className="text-xl font-semibold text-gray-900">ลูกค้า</h1>
           <p className="text-sm text-gray-500">
             {total.toLocaleString()} คน
+            {from || to ? ` · สมัครช่วง ${from ? formatThaiDate(from) : 'แรกสุด'} – ${to ? formatThaiDate(to) : 'วันนี้'}` : ''}
             {testCount ? ` · รวมบัญชีทดสอบ ${testCount} รายการ (หน้าภาพรวมไม่นับรวม)` : ''}
           </p>
         </div>
-        <CustomerSearch initialQuery={q} initialSource={params.source ?? ''} />
+        <CustomerSearch initialQuery={q} initialSource={params.source ?? ''} initialFrom={from} initialTo={to} />
       </div>
 
       {error && (
