@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useState, type UIEvent } from 'react'
+import { Fragment, useEffect, useRef, useState, type UIEvent } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 
@@ -53,22 +53,40 @@ function renderBody(body: string) {
  */
 export function TermsDialog({ open, onOpenChange, body, onAccept }: Props) {
   const [scrolledToEnd, setScrolledToEnd] = useState(false)
+  const bodyRef = useRef<HTMLDivElement>(null)
 
-  function handleScroll(e: UIEvent<HTMLDivElement>) {
-    const el = e.currentTarget
+  function checkEnd(el: HTMLDivElement) {
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 40) setScrolledToEnd(true)
   }
 
+  function handleScroll(e: UIEvent<HTMLDivElement>) {
+    checkEnd(e.currentTarget)
+  }
+
+  // A screen tall enough to show the whole document never fires onScroll,
+  // which would leave the button disabled forever.
+  useEffect(() => {
+    if (!open) return
+    const id = requestAnimationFrame(() => bodyRef.current && checkEnd(bodyRef.current))
+    return () => cancelAnimationFrame(id)
+  }, [open])
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0">
+      {/* Bottom sheet, as in legacy/index.html. dvh, not vh: in LINE's in-app
+          browser vh includes the area behind the bottom toolbar, which pushed
+          the accept button off-screen. min-h-0 lets the body shrink and scroll
+          instead of overflowing the sheet. */}
+      <DialogContent
+        className="top-auto bottom-0 flex max-h-[75vh] max-w-[480px] translate-y-0 flex-col gap-0 rounded-t-2xl rounded-b-none bg-white p-0 text-gray-900 supports-[height:100dvh]:max-h-[75dvh] sm:max-w-[480px] data-open:zoom-in-100 data-closed:zoom-out-100"
+      >
         <DialogHeader className="border-b px-5 py-4">
           <DialogTitle>เงื่อนไขการรับประกันสินค้า</DialogTitle>
         </DialogHeader>
-        <div onScroll={handleScroll} className="flex-1 overflow-y-auto px-5 py-4">
+        <div ref={bodyRef} onScroll={handleScroll} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
           {renderBody(body)}
         </div>
-        <div className="border-t px-5 py-4">
+        <div className="shrink-0 border-t px-5 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           {!scrolledToEnd && <p className="mb-2 text-center text-xs text-gray-400">เลื่อนอ่านจนจบเพื่อกดยอมรับ</p>}
           <Button
             type="button"

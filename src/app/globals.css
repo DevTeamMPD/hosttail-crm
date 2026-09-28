@@ -49,11 +49,11 @@
   --color-ht-error: var(--ht-error);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Light only. The pages hard-code white cards and brand colors, so a dark
+   --foreground (which iOS/Android dark mode used to switch on) turned every
+   label and input nearly white-on-white inside the LINE webview. */
+:root {
+  color-scheme: light;
 }
 
 body {
