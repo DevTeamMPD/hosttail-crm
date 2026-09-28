@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono, Noto_Sans_Thai } from 'next/font/google'
+import { Geist, Geist_Mono, IBM_Plex_Mono, Mitr } from 'next/font/google'
 import './globals.css'
 
 const geistSans = Geist({
@@ -12,13 +12,18 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
-// The legacy page used the OS default font stack, which renders Thai in
-// whatever the device ships (no Thai-specific font at all). Noto Sans Thai
-// is the upgrade the migration plan called for.
-const notoSansThai = Noto_Sans_Thai({
-  variable: '--font-noto-sans-thai',
+// Hosttail CI (Claude Design "Hosttail Mobile Forms" / "Hosttail Dashboard"):
+// Mitr for all text, IBM Plex Mono for order numbers, badges and counters.
+const mitr = Mitr({
+  variable: '--font-mitr',
   subsets: ['thai', 'latin'],
-  weight: ['400', '500', '600', '700'],
+  weight: ['300', '400', '500', '600'],
+})
+
+const plexMono = IBM_Plex_Mono({
+  variable: '--font-plex-mono',
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
 })
 
 export const metadata: Metadata = {
@@ -37,7 +42,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html
       lang="th"
-      className={`${geistSans.variable} ${geistMono.variable} ${notoSansThai.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${mitr.variable} ${plexMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-thai">{children}</body>
     </html>

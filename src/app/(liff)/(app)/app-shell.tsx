@@ -6,7 +6,6 @@ import { useLiffGate } from '@/lib/liff/use-liff-gate'
 import { LiffLoadingScreen, LiffErrorScreen } from '@/lib/liff/liff-gate-screens'
 import { MemberProvider } from './member-context'
 import { BottomNav } from './bottom-nav'
-import { BrandHeader } from '../brand-header'
 
 /**
  * Shared shell for the 4 bottom-nav tabs (/home, /profile, /warranty,
@@ -41,9 +40,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     )
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <BrandHeader />
-      {body}
-    </div>
+    <div className="flex min-h-screen flex-col">{body}</div>
   )
 }

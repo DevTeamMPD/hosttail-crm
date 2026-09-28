@@ -1,16 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { ProvinceSelect, type ProvinceOption } from '../../register/province-select'
 import { PetPicker } from '../../register/pet-picker'
 import { useMember } from '../member-context'
 import { liffFetch, type LiffMemberPublic } from '@/lib/liff/client'
 import { UpdateProfileSchema } from '@/lib/orders/profile-schema'
 import type { PetType } from '@/lib/brand'
-import { formatThaiDate } from '@/lib/format-th'
+import { CARD_SHADOW, Card, Field, StickyBar, fieldClass, primaryButtonClass } from '../../ui'
 
 interface Props {
   provinces: ProvinceOption[]
@@ -63,68 +60,82 @@ export function ProfileForm({ provinces }: Props) {
   }
 
   return (
-    <div className="space-y-4">
-      <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-semibold" style={{ color: 'var(--ht-primary)' }}>
-          👤 ข้อมูลติดต่อ
-        </h2>
-        <div className="space-y-1">
-          <Label>ชื่อ-นามสกุล</Label>
-          <p className="text-sm text-gray-700">{member.full_name ?? '—'}</p>
-        </div>
-        <div className="space-y-1">
-          <Label>เบอร์โทรศัพท์</Label>
-          <p className="text-sm text-gray-700">{member.phone ?? '—'}</p>
-        </div>
-        <p className="text-xs text-gray-400">ต้องการแก้ไขชื่อหรือเบอร์โทร ติดต่อทีมงาน Hosttail</p>
-      </section>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col rounded-[20px] bg-white px-[18px] py-1" style={{ boxShadow: CARD_SHADOW }}>
+        <InfoRow label="ชื่อ-นามสกุล">
+          <span className="font-medium">{member.full_name ?? '—'}</span>
+        </InfoRow>
+        <InfoRow label="เบอร์โทรศัพท์">
+          <span className="font-ht-mono">{member.phone ?? '—'}</span>
+        </InfoRow>
+        <InfoRow label="บัญชี LINE" last>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[var(--ht-line)]" />
+            {member.line_display_name ?? '—'}
+          </span>
+        </InfoRow>
+      </div>
+      <span className="px-1.5 text-xs text-[var(--ht-text-4)]">ต้องการแก้ไขชื่อหรือเบอร์โทร ติดต่อทีมงาน Hosttail</span>
 
-      <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-semibold" style={{ color: 'var(--ht-primary)' }}>
-          📍 ที่อยู่ &amp; สัตว์เลี้ยง
-        </h2>
-        <ProvinceSelect provinces={provinces} value={provinceCode} onChange={setProvinceCode} error={errors.provinceCode} />
-        <PetPicker
-          value={petTypes}
-          onChange={setPetTypes}
-          petOther={petOther}
-          onPetOtherChange={setPetOther}
-          error={errors.petTypes ?? errors.petOther}
+      <Card>
+        <span className="text-[15px] font-semibold text-[var(--ht-ink)]">ที่อยู่ &amp; สัตว์เลี้ยง</span>
+        <ProvinceSelect
+          provinces={provinces}
+          value={provinceCode}
+          onChange={(v) => {
+            setProvinceCode(v)
+            setSaved(false)
+          }}
+          error={errors.provinceCode}
         />
-        <div className="space-y-1">
-          <Label htmlFor="profile-note">หมายเหตุ</Label>
-          <Textarea id="profile-note" value={note} onChange={(e) => setNote(e.target.value)} rows={3} />
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[13px] text-[var(--ht-text-2)]">สัตว์เลี้ยง</span>
+          <PetPicker
+            value={petTypes}
+            onChange={(v) => {
+              setPetTypes(v)
+              setSaved(false)
+            }}
+            petOther={petOther}
+            onPetOtherChange={setPetOther}
+            error={errors.petTypes ?? errors.petOther}
+          />
         </div>
-      </section>
-
-      <section className="rounded-2xl bg-white p-4 shadow-sm">
-        <h2 className="mb-2 text-sm font-semibold" style={{ color: 'var(--ht-primary)' }}>
-          💬 บัญชี LINE
-        </h2>
-        <p className="text-sm text-gray-700">{member.line_display_name ?? '—'}</p>
-        <p className="mt-1 text-xs text-gray-400">สมาชิกตั้งแต่ {formatThaiDate(member.registered_at)}</p>
-      </section>
+        <Field label="หมายเหตุ" htmlFor="profile-note">
+          <textarea
+            id="profile-note"
+            value={note}
+            onChange={(e) => {
+              setNote(e.target.value)
+              setSaved(false)
+            }}
+            rows={2}
+            className={`${fieldClass} resize-none py-3`}
+          />
+        </Field>
+      </Card>
 
       {saveError && (
-        <p className="rounded-lg px-3 py-2 text-center text-sm" style={{ background: '#fdecea', color: 'var(--ht-error)' }}>
-          {saveError}
-        </p>
-      )}
-      {saved && (
-        <p className="rounded-lg px-3 py-2 text-center text-sm" style={{ background: 'var(--ht-success-bg)', color: 'var(--ht-success)' }}>
-          บันทึกข้อมูลเรียบร้อย
-        </p>
+        <p className="rounded-xl bg-[var(--ht-error-bg)] px-3 py-2.5 text-center text-sm text-[var(--ht-error)]">{saveError}</p>
       )}
 
-      <Button
-        type="button"
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full text-white"
-        style={{ background: 'linear-gradient(135deg, var(--ht-primary), var(--ht-deep))' }}
-      >
-        {saving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
-      </Button>
+      <StickyBar aboveNav>
+        <button type="button" onClick={handleSave} disabled={saving} className={`${primaryButtonClass} h-[52px] shadow-none`}>
+          {saving ? 'กำลังบันทึก...' : saved ? 'บันทึกแล้ว ✓' : 'บันทึกข้อมูล'}
+        </button>
+      </StickyBar>
+    </div>
+  )
+}
+
+function InfoRow({ label, children, last }: { label: string; children: React.ReactNode; last?: boolean }) {
+  return (
+    <div
+      className="flex justify-between gap-3 py-3.5 text-sm text-[var(--ht-ink)]"
+      style={last ? undefined : { borderBottom: '1px solid var(--ht-row-divider)' }}
+    >
+      <span className="text-[#8a7e75]">{label}</span>
+      {children}
     </div>
   )
 }

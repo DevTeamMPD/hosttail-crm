@@ -9,7 +9,7 @@ interface Props {
 }
 
 const ONLINE_CHANNELS: readonly OrderChannel[] = ['shopee', 'lazada', 'tiktok']
-const OFFLINE_CHANNELS: readonly OrderChannel[] = ['homepro', 'makropro', 'receipt']
+const OFFLINE_CHANNELS: readonly OrderChannel[] = ['homepro', 'makropro', 'receipt', 'event']
 
 /**
  * The legacy page promised this guide ("ดูวิธีหาเลขคำสั่งซื้อ") but only ever
@@ -32,27 +32,27 @@ export function GuideAccordion({ channel }: Props) {
   const src = isOnline ? '/guide/order-id-online.jpg' : '/guide/order-id-offline.jpg'
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200">
+    <div className="overflow-hidden rounded-[14px] bg-[var(--ht-bg-to)]">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between px-3 py-2 text-sm text-gray-600"
+        className="flex w-full items-center justify-between px-3.5 py-3 text-[13px] font-medium text-[var(--ht-deep)]"
       >
-        <span>
-          📖 <span style={{ color: 'var(--ht-primary)' }}>วิธีค้นหาเลขคำสั่งซื้อ / เลขที่ใบเสร็จ</span>
+        <span>วิธีค้นหาเลขคำสั่งซื้อ / เลขที่ใบเสร็จ</span>
+        <span aria-hidden className="text-[11px]">
+          {open ? '▲' : '▼'}
         </span>
-        <span aria-hidden>{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <div className="border-t border-gray-100 p-2">
+        <div className="mx-2.5 mb-2.5 overflow-hidden rounded-[10px] bg-white">
           <Image
             src={src}
             alt="ตัวอย่างวิธีค้นหาเลขคำสั่งซื้อหรือเลขที่ใบเสร็จ"
             width={900}
             height={900}
             sizes="(max-width: 500px) 100vw, 450px"
-            className="h-auto w-full rounded"
+            className="h-auto w-full"
           />
         </div>
       )}

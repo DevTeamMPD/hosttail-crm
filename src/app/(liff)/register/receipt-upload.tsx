@@ -87,27 +87,24 @@ export function ReceiptUpload({ hasFile, onUploaded, onClear, disabled, error }:
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-gray-700">
-        แนบรูปใบเสร็จ <span style={{ color: 'var(--ht-error)' }}>*</span>
-      </p>
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[13px] text-[var(--ht-text-2)]">แนบรูปใบเสร็จ</span>
 
       {preview ? (
-        <div className="relative w-32">
+        <div className="relative w-fit">
           <Image
             src={preview}
             alt="ตัวอย่างใบเสร็จ"
             width={128}
             height={128}
             unoptimized
-            className="h-32 w-32 rounded-lg border object-cover"
+            className="h-32 w-32 rounded-xl border border-[var(--ht-border)] object-cover"
           />
           <button
             type="button"
             onClick={clear}
             disabled={disabled}
-            className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs shadow"
-            style={{ color: 'var(--ht-error)' }}
+            className="absolute -top-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full bg-white text-xs text-[var(--ht-error)] shadow"
             aria-label="ลบรูป"
           >
             ✕
@@ -115,20 +112,15 @@ export function ReceiptUpload({ hasFile, onUploaded, onClear, disabled, error }:
         </div>
       ) : (
         <label
-          className="flex h-32 w-32 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-gray-300 text-center text-xs text-gray-400"
+          className="flex h-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] border-dashed border-[var(--ht-check-border)] bg-[var(--ht-field)] text-center text-[13px] text-[var(--ht-text-3)]"
           style={disabled ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
         >
           {status === 'uploading' ? (
-            <span
-              className="h-6 w-6 animate-spin rounded-full border-2 border-t-transparent"
-              style={{ borderColor: 'var(--ht-primary)', borderTopColor: 'transparent' }}
-            />
+            <span className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--ht-primary)] border-t-transparent" />
           ) : (
             <>
-              <span className="text-2xl" aria-hidden>
-                📷
-              </span>
-              <span>แตะเพื่อถ่าย/เลือกรูป</span>
+              <span className="font-medium text-[var(--ht-deep)]">+ ถ่ายรูป / เลือกรูปใบเสร็จ</span>
+              <span className="text-xs text-[var(--ht-text-4)]">JPEG, PNG, WEBP, HEIC ไม่เกิน 8MB</span>
             </>
           )}
           <input
@@ -146,14 +138,8 @@ export function ReceiptUpload({ hasFile, onUploaded, onClear, disabled, error }:
         </label>
       )}
 
-      {(message || error) && (
-        <p className="text-xs" style={{ color: 'var(--ht-error)' }}>
-          {message ?? error}
-        </p>
-      )}
-      {!hasFile && !message && !error && status === 'idle' && (
-        <p className="text-xs text-gray-400">รองรับ JPEG, PNG, WEBP, HEIC ขนาดไม่เกิน 8MB</p>
-      )}
+      {(message || error) && <p className="text-xs text-[var(--ht-error)]">{message ?? error}</p>}
+      {hasFile && !message && <p className="text-xs text-[var(--ht-success)]">แนบรูปแล้ว</p>}
     </div>
   )
 }

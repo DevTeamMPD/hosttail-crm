@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { BrandHeader } from '../brand-header'
 import { RegisterClient } from './register-client'
 
 export const metadata: Metadata = {
@@ -34,7 +33,6 @@ export default async function RegisterPage({
 
   return (
     <>
-      <BrandHeader />
       <RegisterClient
         provinces={provinces ?? []}
         termsBody={termsDoc?.body_md ?? ''}

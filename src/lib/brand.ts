@@ -19,25 +19,40 @@ export const ORDER_CHANNELS = [
 
 export type OrderChannel = (typeof ORDER_CHANNELS)[number]
 
+export type ChannelGroup = 'online' | 'chat' | 'store'
+
 export interface ChannelMeta {
   value: OrderChannel
   label: string
+  /** Letter badge shown instead of an emoji (Hosttail Mobile Forms design). */
+  mono: string
+  /** @deprecated emoji icon, kept for back-office lists that still print it. */
   icon: string
   color: string
   bg: string
+  group: ChannelGroup
   refKind: 'order_id' | 'phone'
   refLabel: string
   refPlaceholder: string
   requiresReceipt: boolean
 }
 
+/** Channel groups, by how the purchase is verified. Order matches the form. */
+export const CHANNEL_GROUPS: readonly { key: ChannelGroup; title: string; hint: string }[] = [
+  { key: 'online', title: 'ร้านค้าออนไลน์', hint: 'กรอกเลขคำสั่งซื้อ' },
+  { key: 'chat', title: 'สั่งผ่านแชท', hint: 'ยืนยันด้วยเบอร์โทร' },
+  { key: 'store', title: 'หน้าร้าน / Event', hint: 'แนบรูปใบเสร็จ' },
+]
+
 export const CHANNELS: readonly ChannelMeta[] = [
   {
     value: 'shopee',
     label: 'Shopee',
+    mono: 'S',
     icon: '🟠',
-    color: 'var(--ht-shopee)',
-    bg: 'var(--ht-shopee-bg)',
+    color: '#ee4d2d',
+    bg: '#fff0ee',
+    group: 'online',
     refKind: 'order_id',
     refLabel: 'หมายเลขคำสั่งซื้อ (Shopee)',
     refPlaceholder: 'เช่น 250612XXXXXXXXX',
@@ -46,9 +61,11 @@ export const CHANNELS: readonly ChannelMeta[] = [
   {
     value: 'lazada',
     label: 'Lazada',
+    mono: 'Lz',
     icon: '🔵',
-    color: 'var(--ht-lazada)',
-    bg: 'var(--ht-lazada-bg)',
+    color: '#0f146d',
+    bg: '#eef0ff',
+    group: 'online',
     refKind: 'order_id',
     refLabel: 'หมายเลขคำสั่งซื้อ (Lazada)',
     refPlaceholder: 'เช่น #250601XXXXXXX',
@@ -57,9 +74,11 @@ export const CHANNELS: readonly ChannelMeta[] = [
   {
     value: 'tiktok',
     label: 'TikTok',
+    mono: 'T',
     icon: '⚫',
-    color: 'var(--ht-tiktok)',
-    bg: 'var(--ht-tiktok-bg)',
+    color: '#111111',
+    bg: '#f5f5f5',
+    group: 'online',
     refKind: 'order_id',
     refLabel: 'หมายเลขคำสั่งซื้อ (TikTok)',
     refPlaceholder: 'เช่น 58XXXXXXXXXXXXXX',
@@ -68,31 +87,37 @@ export const CHANNELS: readonly ChannelMeta[] = [
   {
     value: 'facebook',
     label: 'Facebook',
+    mono: 'f',
     icon: '📘',
     color: '#1877f2',
     bg: '#eaf2ff',
+    group: 'chat',
     refKind: 'phone',
     refLabel: 'เบอร์โทรที่ใช้สั่งซื้อ',
-    refPlaceholder: 'เช่น 0812345678',
+    refPlaceholder: '',
     requiresReceipt: false,
   },
   {
     value: 'line',
     label: 'LINE',
+    mono: 'L',
     icon: '💬',
-    color: 'var(--ht-line)',
+    color: '#00b900',
     bg: '#e8fbe8',
+    group: 'chat',
     refKind: 'phone',
     refLabel: 'เบอร์โทรที่ใช้สั่งซื้อ',
-    refPlaceholder: 'เช่น 0812345678',
+    refPlaceholder: '',
     requiresReceipt: false,
   },
   {
     value: 'homepro',
     label: 'HomePro',
+    mono: 'HP',
     icon: '🏪',
-    color: 'var(--ht-homepro)',
-    bg: 'var(--ht-homepro-bg)',
+    color: '#2e7d32',
+    bg: '#e8f5e9',
+    group: 'store',
     refKind: 'order_id',
     refLabel: 'เลขที่ใบเสร็จ (HomePro)',
     refPlaceholder: 'เช่น INV-2025-00123',
@@ -101,22 +126,13 @@ export const CHANNELS: readonly ChannelMeta[] = [
   {
     value: 'makropro',
     label: 'Makro Pro',
+    mono: 'MK',
     icon: '🏪',
-    color: 'var(--ht-makro)',
-    bg: 'var(--ht-homepro-bg)',
+    color: '#1b5e20',
+    bg: '#e8f5e9',
+    group: 'store',
     refKind: 'order_id',
     refLabel: 'เลขที่ใบเสร็จ (Makro Pro)',
-    refPlaceholder: 'เช่น INV-2025-00123',
-    requiresReceipt: true,
-  },
-  {
-    value: 'receipt',
-    label: 'ใบเสร็จ',
-    icon: '🧾',
-    color: 'var(--ht-accent)',
-    bg: '#fff0e8',
-    refKind: 'order_id',
-    refLabel: 'เลขที่ใบเสร็จ',
     refPlaceholder: 'เช่น INV-2025-00123',
     requiresReceipt: true,
   },
@@ -127,12 +143,27 @@ export const CHANNELS: readonly ChannelMeta[] = [
     // resolveByOrderRef's 'event' scope.
     value: 'event',
     label: 'งาน Event',
+    mono: 'EV',
     icon: '🎪',
     color: '#6a1b9a',
     bg: '#f3e5f5',
+    group: 'store',
     refKind: 'order_id',
     refLabel: 'เลขที่ใบเสร็จ (งาน Event)',
     refPlaceholder: 'เช่น 901520260502-0009 หรือ 267122',
+    requiresReceipt: true,
+  },
+  {
+    value: 'receipt',
+    label: 'ใบเสร็จ',
+    mono: '฿',
+    icon: '🧾',
+    color: '#c9561a',
+    bg: '#fff1e7',
+    group: 'store',
+    refKind: 'order_id',
+    refLabel: 'เลขที่ใบเสร็จ',
+    refPlaceholder: 'เช่น INV-2025-00123',
     requiresReceipt: true,
   },
 ]

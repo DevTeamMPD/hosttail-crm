@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useLiffGate } from '@/lib/liff/use-liff-gate'
 import { LiffLoadingScreen, LiffErrorScreen } from '@/lib/liff/liff-gate-screens'
@@ -46,37 +45,5 @@ export function RegisterClient({ provinces, termsBody, forceForm }: Props) {
   if (state.phase === 'error') return <LiffErrorScreen message={state.message} onRetry={retry} />
   if (isReturning && !forceForm) return <LiffLoadingScreen /> // brief flash while router.replace('/home') takes effect
 
-  return (
-    <div className="space-y-4 p-4 pb-2">
-      <div className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm">
-        {state.member.line_picture_url ? (
-          <Image
-            src={state.member.line_picture_url}
-            alt=""
-            width={48}
-            height={48}
-            className="rounded-full"
-            unoptimized
-          />
-        ) : (
-          <div className="h-12 w-12 rounded-full bg-gray-200" />
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-gray-900">
-            {state.member.line_display_name ?? 'สมาชิก LINE'}
-          </p>
-          <p
-            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white"
-            style={{ background: 'var(--ht-line)' }}
-          >
-            LINE
-          </p>
-        </div>
-      </div>
-
-      {/* Legacy-account claims (CheckLegacyMember) are not used in Phase 1 --
-          see docs/PHASE1_PLAN.md. */}
-      <RegisterForm member={state.member} provinces={provinces} termsBody={termsBody} />
-    </div>
-  )
+  return <RegisterForm member={state.member} provinces={provinces} termsBody={termsBody} />
 }

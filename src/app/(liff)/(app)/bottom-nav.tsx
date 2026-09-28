@@ -2,12 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, User, ShieldCheck } from 'lucide-react'
 
 const TABS = [
-  { href: '/home', label: 'หน้าหลัก', icon: Home },
-  { href: '/profile', label: 'ข้อมูลสมาชิก', icon: User },
-  { href: '/warranty', label: 'การรับประกัน', icon: ShieldCheck },
+  { href: '/home', label: 'หน้าหลัก' },
+  { href: '/profile', label: 'ข้อมูลสมาชิก' },
+  { href: '/warranty', label: 'การรับประกัน' },
   // สิทธิพิเศษ (points) is hidden in Phase 1 -- see docs/PHASE1_PLAN.md.
 ] as const
 
@@ -23,24 +22,27 @@ export function BottomNav() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-20 flex justify-center">
       <nav
-        className="flex w-full max-w-md border-t border-gray-100 bg-white/95 backdrop-blur"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="grid w-full max-w-md grid-cols-3 border-t border-[var(--ht-divider)] bg-white/95 px-2 pt-2 backdrop-blur"
+        style={{ paddingBottom: 'calc(10px + env(safe-area-inset-bottom))' }}
         role="tablist"
         aria-label="เมนูหลัก"
       >
         {TABS.map((tab) => {
           const active = pathname === tab.href
-          const Icon = tab.icon
           return (
             <Link
               key={tab.href}
               href={tab.href}
               role="tab"
               aria-selected={active}
-              className="flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium"
-              style={{ color: active ? 'var(--ht-primary)' : 'var(--ht-muted)' }}
+              className="flex flex-col items-center gap-1 py-1 text-[11px]"
+              style={{ color: active ? 'var(--ht-primary)' : 'var(--ht-muted)', fontWeight: active ? 600 : 500 }}
             >
-              <Icon size={22} strokeWidth={active ? 2.4 : 1.8} aria-hidden />
+              <span
+                aria-hidden
+                className="h-1 w-7 rounded-sm"
+                style={{ background: active ? 'var(--ht-primary)' : 'transparent' }}
+              />
               {tab.label}
             </Link>
           )
