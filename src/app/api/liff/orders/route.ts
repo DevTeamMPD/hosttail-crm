@@ -58,7 +58,7 @@ async function notifyRegistration(
   const greeting = member.full_name ? `สวัสดีคุณ ${member.full_name}\n` : ''
   const text =
     result.status === 'active'
-      ? `${greeting}✅ ลงทะเบียนรับประกันสำเร็จ\nขอบคุณที่เลือกใช้สินค้า Hosttail ดูรายละเอียดการรับประกันและคะแนนได้ที่เมนูสมาชิก`
+      ? `${greeting}✅ ลงทะเบียนรับประกันสำเร็จ\nขอบคุณที่เลือกใช้สินค้า Hosttail ดูรายละเอียดการรับประกันได้ที่เมนูสมาชิก`
       : `${greeting}📥 ได้รับข้อมูลการลงทะเบียนแล้ว\n${result.message}\nเราจะแจ้งผลให้ทราบทาง LINE นี้`
   await pushLineMessage(member.line_uid, [{ type: 'text', text }])
 }
