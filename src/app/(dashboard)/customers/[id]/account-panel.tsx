@@ -8,6 +8,7 @@ import { CHANNELS } from '@/lib/brand'
 import {
   addManualWarranty,
   confirmConnect,
+  editRegistration,
   previewConnect,
   registerBoundOrder,
   revokeBinding,
@@ -340,6 +341,96 @@ export function ManualWarranty({ memberId, pending: pendingRegs }: { memberId: s
         <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
           ยกเลิก
         </Button>
+      </div>
+      <Notice result={result} />
+    </div>
+  )
+}
+
+/**
+ * Fix what the customer typed on a registration: the channel (e.g. picked
+ * Shopee when the bill is really from Facebook), the order number, and the
+ * admin note. Matched bill, items, points and warranty dates are untouched.
+ */
+export function EditRegistration({
+  memberId,
+  registrationId,
+  channel: initialChannel,
+  orderRef: initialOrderRef,
+  note: initialNote,
+}: {
+  memberId: string
+  registrationId: string
+  channel: string
+  orderRef: string
+  note: string | null
+}) {
+  const [open, setOpen] = useState(false)
+  const [channel, setChannel] = useState(initialChannel)
+  const [orderRef, setOrderRef] = useState(initialOrderRef)
+  const [note, setNote] = useState(initialNote ?? '')
+  const [result, setResult] = useState<ConnectResult | null>(null)
+  const [busy, startTransition] = useTransition()
+
+  if (!open) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            setChannel(initialChannel)
+            setOrderRef(initialOrderRef)
+            setNote(initialNote ?? '')
+            setResult(null)
+            setOpen(true)
+          }}
+          className="text-xs text-gray-400 underline hover:text-gray-600"
+        >
+          แก้ไข
+        </button>
+        {result?.ok && <span className="text-[11px]" style={{ color: 'var(--ht-success)' }}>{result.message}</span>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-2 w-full space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={channel}
+          onChange={(e) => setChannel(e.target.value)}
+          className="h-9 rounded-md border border-gray-200 bg-white px-2 text-sm"
+          aria-label="ช่องทาง"
+        >
+          {CHANNELS.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+        <Input value={orderRef} onChange={(e) => setOrderRef(e.target.value)} placeholder="เลขคำสั่งซื้อ" className="w-56 bg-white font-mono" />
+        <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="หมายเหตุ" className="min-w-48 flex-1 bg-white" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            startTransition(async () => {
+              const res = await editRegistration(memberId, registrationId, { channel, orderRef, note })
+              setResult(res)
+              if (res.ok) setOpen(false)
+            })
+          }
+          className="h-8 text-xs text-white"
+          style={{ background: 'var(--ht-primary)' }}
+        >
+          {busy ? 'กำลังบันทึก...' : 'บันทึก'}
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setOpen(false)} className="h-8 text-xs">
+          ยกเลิก
+        </Button>
+        <span className="text-[11px] text-gray-400">แก้เฉพาะข้อมูลที่ลูกค้ากรอก — บิลที่จับคู่ สินค้า และวันรับประกันไม่เปลี่ยน</span>
       </div>
       <Notice result={result} />
     </div>

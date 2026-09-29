@@ -1071,6 +1071,12 @@ export interface Database {
         Update: { key?: string; updated_at?: string; updated_by?: string | null; value?: Json }
         Relationships: []
       }
+      ht_segments: {
+        Row: { created_at: string; created_by: string | null; filters: Json; id: string; name: string }
+        Insert: { created_at?: string; created_by?: string | null; filters?: Json; id?: string; name: string }
+        Update: { created_at?: string; created_by?: string | null; filters?: Json; id?: string; name?: string }
+        Relationships: []
+      }
       ht_rate_limits: {
         Row: { count: number; key: string; window_start: string }
         Insert: { count?: number; key: string; window_start?: string }

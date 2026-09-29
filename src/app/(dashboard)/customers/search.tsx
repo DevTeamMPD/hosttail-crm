@@ -1,15 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { PET_TYPES } from '@/lib/brand'
+import { customerFiltersToParams, hasCustomerFilter, type CustomerFilters } from '@/lib/customer-filters'
 
 interface Props {
-  initialQuery: string
-  initialSource: string
-  initialFrom: string
-  initialTo: string
+  initial: CustomerFilters
+  provinces: { code: string; name: string }[]
 }
 
 /** Today in Bangkok as YYYY-MM-DD, independent of the browser's timezone. */
@@ -42,26 +42,38 @@ const PRESETS: { label: string; range: () => [string, string] }[] = [
   },
 ]
 
-export function CustomerSearch({ initialQuery, initialSource, initialFrom, initialTo }: Props) {
+export function CustomerSearch({ initial, provinces }: Props) {
   const router = useRouter()
-  const [q, setQ] = useState(initialQuery)
-  const [source, setSource] = useState(initialSource)
-  const [from, setFrom] = useState(initialFrom)
-  const [to, setTo] = useState(initialTo)
+  const [q, setQ] = useState(initial.q)
+  const [source, setSource] = useState(initial.source)
+  const [from, setFrom] = useState(initial.from)
+  const [to, setTo] = useState(initial.to)
+  const [pets, setPets] = useState(initial.pets)
+  const [petMode, setPetMode] = useState(initial.petMode)
+  const [provs, setProvs] = useState(initial.provinces)
+  const initialFrom = initial.from
+  const initialTo = initial.to
+  const provinceName = new Map(provinces.map((p) => [p.code, p.name]))
 
-  function go(next: { q?: string; source?: string; from?: string; to?: string } = {}) {
-    const v = { q, source, from, to, ...next }
-    const sp = new URLSearchParams()
-    if (v.q?.trim()) sp.set('q', v.q.trim())
-    if (v.source) sp.set('source', v.source)
-    if (v.from) sp.set('from', v.from)
-    if (v.to) sp.set('to', v.to)
+  function go(next: Partial<CustomerFilters> = {}) {
+    const sp = customerFiltersToParams({ q, source, from, to, pets, petMode, provinces: provs, ...next })
     // Filters live in the URL so a result set can be shared or bookmarked,
     // and so paging keeps them without any client state.
     router.push(`/customers${sp.toString() ? `?${sp}` : ''}`)
   }
 
-  const hasFilter = Boolean(initialQuery || initialSource || initialFrom || initialTo)
+  function togglePet(value: string) {
+    const nextPets = pets.includes(value) ? pets.filter((p) => p !== value) : [...pets, value]
+    setPets(nextPets)
+    go({ pets: nextPets })
+  }
+
+  function setProvinces(next: string[]) {
+    setProvs(next)
+    go({ provinces: next })
+  }
+
+  const hasFilter = hasCustomerFilter(initial)
 
   return (
     <form
@@ -120,6 +132,69 @@ export function CustomerSearch({ initialQuery, initialSource, initialFrom, initi
         <span className="text-xs text-gray-400">ถึง</span>
         <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-36" aria-label="ถึงวันที่" />
       </div>
+      <div className="flex flex-wrap items-center justify-end gap-1.5 text-sm">
+        <span className="text-xs text-gray-500">สัตว์เลี้ยง</span>
+        {PET_TYPES.map((p) => (
+          <Chip key={p.value} active={pets.includes(p.value)} onClick={() => togglePet(p.value)}>
+            {p.label}
+          </Chip>
+        ))}
+        {pets.length > 1 && (
+          <select
+            value={petMode}
+            onChange={(e) => {
+              const mode = e.target.value === 'all' ? 'all' : 'any'
+              setPetMode(mode)
+              go({ petMode: mode })
+            }}
+            className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs"
+            aria-label="เงื่อนไขสัตว์เลี้ยง"
+          >
+            <option value="any">มีอย่างใดอย่างหนึ่ง</option>
+            <option value="all">มีครบทุกอย่าง</option>
+          </select>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-1.5 text-sm">
+        <span className="text-xs text-gray-500">จังหวัด</span>
+        {provs.map((code) => (
+          <Chip key={code} active onClick={() => setProvinces(provs.filter((c) => c !== code))}>
+            {provinceName.get(code) ?? code} ×
+          </Chip>
+        ))}
+        <select
+          value=""
+          onChange={(e) => e.target.value && setProvinces([...provs, e.target.value])}
+          className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs"
+          aria-label="เพิ่มจังหวัด"
+        >
+          <option value="">+ เพิ่มจังหวัด</option>
+          {provinces
+            .filter((p) => !provs.includes(p.code))
+            .map((p) => (
+              <option key={p.code} value={p.code}>
+                {p.name}
+              </option>
+            ))}
+        </select>
+      </div>
     </form>
+  )
+}
+
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-full border px-2.5 py-1 text-xs"
+      style={
+        active
+          ? { background: 'var(--ht-primary)', borderColor: 'var(--ht-primary)', color: '#fff' }
+          : { background: '#fff', borderColor: '#e5e7eb', color: '#374151' }
+      }
+    >
+      {children}
+    </button>
   )
 }
