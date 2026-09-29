@@ -56,7 +56,7 @@ export function CustomerSearch({ initial, provinces }: Props) {
   const provinceName = new Map(provinces.map((p) => [p.code, p.name]))
 
   function go(next: Partial<CustomerFilters> = {}) {
-    const sp = customerFiltersToParams({ q, source, from, to, pets, petMode, provinces: provs, ...next })
+    const sp = customerFiltersToParams({ q, source, from, to, pets, petMode, provinces: provs, seg: initial.seg, ...next })
     // Filters live in the URL so a result set can be shared or bookmarked,
     // and so paging keeps them without any client state.
     router.push(`/customers${sp.toString() ? `?${sp}` : ''}`)

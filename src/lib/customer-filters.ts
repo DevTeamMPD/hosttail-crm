@@ -16,9 +16,12 @@ export interface CustomerFilters {
   petMode: 'any' | 'all'
   /** Province codes; a member matches if they are in any of them. */
   provinces: string[]
+  /** A manual group (ht_segments.kind = 'manual'): only its members. */
+  seg: string
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const PETS = new Set<string>(PET_TYPE_VALUES)
 
 function list(v: unknown): string[] {
@@ -36,6 +39,7 @@ export function parseCustomerFilters(p: Record<string, unknown>): CustomerFilter
     pets: list(p.pet).filter((x) => PETS.has(x)),
     petMode: str('petmode') === 'all' ? 'all' : 'any',
     provinces: list(p.prov).filter((x) => /^[\w-]{1,16}$/.test(x)),
+    seg: UUID.test(str('seg')) ? str('seg') : '',
   }
 }
 
@@ -50,6 +54,7 @@ export function customerFiltersToParams(f: Partial<CustomerFilters>): URLSearchP
     if (f.petMode === 'all' && f.pets.length > 1) sp.set('petmode', 'all')
   }
   if (f.provinces?.length) sp.set('prov', f.provinces.join(','))
+  if (f.seg) sp.set('seg', f.seg)
   return sp
 }
 

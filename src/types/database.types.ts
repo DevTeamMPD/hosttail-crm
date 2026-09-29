@@ -1072,9 +1072,15 @@ export interface Database {
         Relationships: []
       }
       ht_segments: {
-        Row: { created_at: string; created_by: string | null; filters: Json; id: string; name: string }
-        Insert: { created_at?: string; created_by?: string | null; filters?: Json; id?: string; name: string }
-        Update: { created_at?: string; created_by?: string | null; filters?: Json; id?: string; name?: string }
+        Row: { created_at: string; created_by: string | null; filters: Json; id: string; kind: string; name: string }
+        Insert: { created_at?: string; created_by?: string | null; filters?: Json; id?: string; kind?: string; name: string }
+        Update: { created_at?: string; created_by?: string | null; filters?: Json; id?: string; kind?: string; name?: string }
+        Relationships: []
+      }
+      ht_segment_members: {
+        Row: { added_at: string; added_by: string | null; member_id: string; segment_id: string }
+        Insert: { added_at?: string; added_by?: string | null; member_id: string; segment_id: string }
+        Update: { added_at?: string; added_by?: string | null; member_id?: string; segment_id?: string }
         Relationships: []
       }
       ht_rate_limits: {

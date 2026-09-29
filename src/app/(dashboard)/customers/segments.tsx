@@ -9,6 +9,8 @@ import { createSegment, deleteSegment, type SegmentResult } from './actions'
 interface Segment {
   id: string
   name: string
+  /** Hand-picked members (ht_segment_members) rather than a saved filter. */
+  manual: boolean
   query: string
 }
 
@@ -32,7 +34,8 @@ export function SegmentBar({
   const [busy, startTransition] = useTransition()
 
   const activeId = currentQuery ? segments.find((s) => s.query === currentQuery)?.id : undefined
-  const canSave = canManage && currentQuery !== '' && !activeId
+  // A filter segment can't be saved on top of a manual group's view.
+  const canSave = canManage && currentQuery !== '' && !activeId && !new URLSearchParams(currentQuery).has('seg')
 
   if (!segments.length && !canSave && !result) return null
 
@@ -50,7 +53,10 @@ export function SegmentBar({
               : { background: '#fff', borderColor: '#e5e7eb', color: '#374151' }
           }
         >
-          <Link href={s.id === activeId ? '/customers' : `/customers?${s.query}`}>{s.name}</Link>
+          <Link href={s.id === activeId ? '/customers' : `/customers?${s.query}`} title={s.manual ? 'กลุ่มที่เลือกเอง' : 'กลุ่มจากตัวกรอง'}>
+            {s.manual ? '👥 ' : ''}
+            {s.name}
+          </Link>
           {canManage && (
             <button
               type="button"

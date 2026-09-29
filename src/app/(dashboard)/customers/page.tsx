@@ -10,6 +10,7 @@ import { maskPhone } from '@/lib/mask'
 import { parseCustomerFilters, customerFiltersToParams } from '@/lib/customer-filters'
 import { CustomerSearch } from './search'
 import { SegmentBar } from './segments'
+import { BulkBar, RowCheckbox, SelectAllCheckbox, SelectionProvider } from './selection'
 
 export const metadata: Metadata = { title: 'ลูกค้า — Hosttail CRM' }
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,7 @@ interface Props {
     pet?: string
     petmode?: string
     prov?: string
+    seg?: string
   }>
 }
 
@@ -55,6 +57,13 @@ export default async function CustomersPage({ searchParams }: Props) {
 
   const supabase = await createClient()
 
+  // A manual group narrows the list to its members before anything else.
+  const segMemberIds = filters.seg
+    ? ((await supabase.from('ht_segment_members').select('member_id').eq('segment_id', filters.seg)).data ?? []).map(
+        (r) => r.member_id
+      )
+    : null
+
   let query = supabase
     .from('ht_members')
     .select('id, full_name, line_display_name, line_picture_url, phone, province_code, pet_types, points_balance, source, registered_at, is_test', {
@@ -77,6 +86,7 @@ export default async function CustomersPage({ searchParams }: Props) {
     query = filters.petMode === 'all' ? query.contains('pet_types', filters.pets) : query.overlaps('pet_types', filters.pets)
   }
   if (filters.provinces.length) query = query.in('province_code', filters.provinces)
+  if (segMemberIds) query = query.in('id', segMemberIds.length ? segMemberIds : ['00000000-0000-0000-0000-000000000000'])
   if (params.bound === 'no') query = query.eq('is_test', false)
 
   const { data: members, count, error } = await query
@@ -93,11 +103,12 @@ export default async function CustomersPage({ searchParams }: Props) {
       .eq('status', 'active')
       .in('member_id', (members ?? []).map((m) => m.id).length ? (members ?? []).map((m) => m.id) : ['']),
     // Errors (e.g. the ht_segments migration not applied yet) just hide the bar.
-    supabase.from('ht_segments').select('id, name, filters').order('name'),
+    supabase.from('ht_segments').select('id, name, filters, kind').order('name'),
   ])
   const provinceName = new Map((provinces ?? []).map((p) => [p.code, p.name_th]))
   const boundIds = new Set((bindings ?? []).map((b) => b.member_id))
 
+  const manualSegments = (segments ?? []).filter((sg) => sg.kind === 'manual').map((sg) => ({ id: sg.id, name: sg.name }))
   const total = count ?? 0
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -122,13 +133,25 @@ export default async function CustomersPage({ searchParams }: Props) {
         segments={(segments ?? []).map((sg) => ({
           id: sg.id,
           name: sg.name,
+          manual: sg.kind === 'manual',
           // Re-serialize: jsonb does not keep key order, and this string is
           // compared against the current URL to highlight the active segment.
-          query: customerFiltersToParams(parseCustomerFilters((sg.filters ?? {}) as Record<string, unknown>)).toString(),
+          query:
+            sg.kind === 'manual'
+              ? customerFiltersToParams({ seg: sg.id }).toString()
+              : customerFiltersToParams(parseCustomerFilters((sg.filters ?? {}) as Record<string, unknown>)).toString(),
         }))}
         currentQuery={customerFiltersToParams(filters).toString()}
         canManage={canManageSegments}
       />
+
+      <SelectionProvider>
+      {canManageSegments && (
+        <BulkBar
+          manualSegments={manualSegments}
+          currentSeg={manualSegments.find((sg) => sg.id === filters.seg) ?? null}
+        />
+      )}
 
       {error && (
         <p className="rounded-lg px-3 py-2 text-sm" style={{ background: '#fdecea', color: 'var(--ht-error)' }}>
@@ -140,6 +163,11 @@ export default async function CustomersPage({ searchParams }: Props) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 text-left text-xs text-gray-500">
+              {canManageSegments && (
+                <th className="w-10 py-2.5 pl-4">
+                  <SelectAllCheckbox ids={(members ?? []).map((m) => m.id)} />
+                </th>
+              )}
               <th className="px-4 py-2.5 font-medium">ชื่อ</th>
               <th className="px-4 py-2.5 font-medium">เบอร์โทร</th>
               <th className="px-4 py-2.5 font-medium">จังหวัด</th>
@@ -152,13 +180,18 @@ export default async function CustomersPage({ searchParams }: Props) {
           <tbody className="divide-y divide-gray-100">
             {!members?.length && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-gray-400">
+                <td colSpan={canManageSegments ? 8 : 7} className="px-4 py-10 text-center text-gray-400">
                   ไม่พบลูกค้าตามเงื่อนไขนี้
                 </td>
               </tr>
             )}
             {members?.map((m) => (
               <tr key={m.id} className="hover:bg-gray-50">
+                {canManageSegments && (
+                  <td className="py-2.5 pl-4">
+                    <RowCheckbox id={m.id} label={m.full_name ?? m.line_display_name ?? ''} />
+                  </td>
+                )}
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-3">
                     {m.line_picture_url ? (
@@ -207,6 +240,7 @@ export default async function CustomersPage({ searchParams }: Props) {
           </tbody>
         </table>
       </div>
+      </SelectionProvider>
 
       {lastPage > 1 && (
         <div className="flex items-center justify-between text-sm">
