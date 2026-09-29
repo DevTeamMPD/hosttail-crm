@@ -122,7 +122,14 @@ export async function addToManualSegment(
         .select('id')
         .single()
       if (error) {
-        if (error.code === '23505') return { ok: false, message: 'มีกลุ่มชื่อนี้อยู่แล้ว — เลือกจากรายการแทน' }
+        if (error.code === '23505') {
+          // The dropdown lists manual groups only, so a clash with a filter
+          // group needs saying explicitly -- it is not in the list to pick.
+          return {
+            ok: false,
+            message: `มีกลุ่ม "${name}" อยู่แล้ว เป็นกลุ่มจากตัวกรอง (เพิ่มคนเองไม่ได้) — ใช้ชื่ออื่น หรือลบกลุ่มเดิมก่อน`,
+          }
+        }
         return { ok: false, message: `สร้างกลุ่มไม่สำเร็จ: ${error.message}` }
       }
       id = created.id
