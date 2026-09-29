@@ -92,7 +92,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   // Orders placed from this member's bound accounts, and which of them are
   // already registered for warranty (by matched bill, or by the id typed).
   const boundOrders = await listBoundOrders(admin, id)
-  const registeredOrderNos = new Set((regs ?? []).map((r) => r.matched_order_no).filter(Boolean))
+  // matched_order_no holds 'a, b' when one claim was approved against split bills.
+  const registeredOrderNos = new Set((regs ?? []).flatMap((r) => (r.matched_order_no ?? '').split(', ')).filter(Boolean))
   const registeredKeys = new Set((regs ?? []).map((r) => normalizeOrderKey(r.order_ref_raw)).filter(Boolean))
   const isRegistered = (o: { orderNo: string; billNo: string }) =>
     registeredOrderNos.has(o.orderNo) || registeredKeys.has(normalizeOrderKey(o.billNo))

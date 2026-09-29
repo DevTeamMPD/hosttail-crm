@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireRole, NotAuthorizedError } from '@/lib/session'
-import { resolveByOrderRef } from '@/lib/orders/resolve'
+import { resolveByOrderRef, type ResolveOutcome } from '@/lib/orders/resolve'
 import { bindPlatformAccount, type BindOutcome } from '@/lib/orders/bind-account'
 
 export interface ActionResult {
@@ -42,13 +42,16 @@ async function loadPendingRegistration(supabase: ReturnType<typeof createAdminCl
  * For online channels the buyer account behind the bill is then bound to the
  * member, so their later orders on that account can be attributed to them.
  */
-export async function approveWarranty(registrationId: string, billNo: string): Promise<ActionResult> {
+export async function approveWarranty(registrationId: string, billNos: string | string[]): Promise<ActionResult> {
   try {
     const staff = await requireRole('marketing')
     const supabase = createAdminClient()
 
-    const ref = billNo.trim()
-    if (!ref) return { ok: false, message: 'กรุณากรอกเลขบิล' }
+    // One claim can cover several bills: JST splits one checkout into a bill
+    // per warehouse/shipment, so the customer's single order id maps to 2+.
+    const refs = [...new Set((Array.isArray(billNos) ? billNos : billNos.split(',')).map((b) => b.trim()).filter(Boolean))]
+    if (!refs.length) return { ok: false, message: 'กรุณากรอกเลขบิล' }
+    if (refs.length > 10) return { ok: false, message: 'เลือกได้สูงสุด 10 บิล' }
 
     const reg = await loadPendingRegistration(supabase, registrationId)
     if (!reg) return { ok: false, message: 'ไม่พบรายการนี้' }
@@ -59,24 +62,30 @@ export async function approveWarranty(registrationId: string, billNo: string): P
     const isStoreReceipt = MANUAL_CHANNELS.includes(reg.channel)
 
     const scope = reg.channel === 'event' ? 'event' : 'online'
-    const outcome = await resolveByOrderRef(supabase, ref, scope)
-    if (outcome.status === 'not_found') return { ok: false, message: `ไม่พบบิล ${ref} ในระบบขาย` }
-    if (outcome.status === 'cancelled') return { ok: false, message: `บิล ${ref} ถูกยกเลิกแล้ว` }
-    if (outcome.status === 'unsettled') return { ok: false, message: `บิล ${ref} ยังไม่ตัดยอด รอ ETL รอบถัดไป` }
-    if (outcome.status === 'ambiguous') {
-      return { ok: false, message: `เลขนี้ตรงกับหลายบิล (${outcome.candidates.map((c) => c.orderNo).join(', ')})` }
+    const bills: Extract<ResolveOutcome, { status: 'matched' }>[] = []
+    for (const ref of refs) {
+      const outcome = await resolveByOrderRef(supabase, ref, scope)
+      if (outcome.status === 'not_found') return { ok: false, message: `ไม่พบบิล ${ref} ในระบบขาย` }
+      if (outcome.status === 'cancelled') return { ok: false, message: `บิล ${ref} ถูกยกเลิกแล้ว` }
+      if (outcome.status === 'unsettled') return { ok: false, message: `บิล ${ref} ยังไม่ตัดยอด รอ ETL รอบถัดไป` }
+      if (outcome.status === 'ambiguous') {
+        return { ok: false, message: `เลข ${ref} ตรงกับหลายบิล (${outcome.candidates.map((c) => c.orderNo).join(', ')})` }
+      }
+      // Two refs resolving to the same bill must not count it twice.
+      if (!bills.some((b) => b.orderNo === outcome.orderNo)) bills.push(outcome)
     }
 
-    const items = outcome.lines.map((l) => ({
-      sku: l.sku,
-      product_name: l.product_name,
-      quantity: l.quantity ?? 1,
-    }))
+    const items = bills.flatMap((b) =>
+      b.lines.map((l) => ({ sku: l.sku, product_name: l.product_name, quantity: l.quantity ?? 1 }))
+    )
+    const orderNos = bills.map((b) => b.orderNo)
+    const amount = Math.round(bills.reduce((sum, b) => sum + b.netAmount, 0) * 100) / 100
 
     const { error } = await supabase.rpc('ht_finalize_registration', {
       p_registration_id: registrationId,
-      p_matched_order_no: outcome.orderNo,
-      p_order_amount: outcome.netAmount,
+      // Several bills are stored comma-separated; readers split on ', '.
+      p_matched_order_no: orderNos.join(', '),
+      p_order_amount: amount,
       p_items: items,
       p_reviewed_by: staff.staffId,
     })
@@ -91,7 +100,7 @@ export async function approveWarranty(registrationId: string, billNo: string): P
         .limit(1)
         .maybeSingle()
       const bind = await bindPlatformAccount(supabase, reg.member_id, {
-        orderRefs: [ref, outcome.orderNo, ...outcome.lines.map((l) => l.bill_no), reg.order_ref_raw],
+        orderRefs: [...refs, ...orderNos, ...bills.flatMap((b) => b.lines.map((l) => l.bill_no)), reg.order_ref_raw],
         phone: reg.order_ref_kind === 'phone' ? member?.phone : null,
         registrationId,
         boundVia: 'admin',
@@ -113,13 +122,13 @@ export async function approveWarranty(registrationId: string, billNo: string): P
       action: 'warranty_approved',
       entity: 'ht_warranty_registrations',
       entity_id: registrationId,
-      after: { matched_order_no: outcome.orderNo, amount: outcome.netAmount, items: items.length, bind: bindNote || null },
+      after: { matched_order_no: orderNos, amount, items: items.length, bind: bindNote || null },
     })
 
     revalidatePath('/approvals')
     return {
       ok: true,
-      message: `อนุมัติแล้ว · จับคู่บิล ${outcome.orderNo} · ฿${outcome.netAmount.toLocaleString()}${bindNote ? ` · ${bindNote}` : ''}`,
+      message: `อนุมัติแล้ว · จับคู่บิล ${orderNos.join(', ')} · ฿${amount.toLocaleString()}${bindNote ? ` · ${bindNote}` : ''}`,
     }
   } catch (err) {
     return fail(err)
