@@ -9,8 +9,8 @@ export type HtRole = 'admin' | 'marketing' | 'viewer'
  */
 export const ROLE_PATHS: Record<HtRole, string[] | '*'> = {
   admin: '*',
-  marketing: ['/overview', '/customers', '/segments', '/broadcasts', '/approvals'],
-  viewer: ['/overview', '/customers', '/segments'],
+  marketing: ['/overview', '/customers', '/segments', '/marketing', '/approvals'],
+  viewer: ['/overview', '/customers', '/segments', '/marketing'],
 }
 
 export function isPathAllowed(pathname: string, role: string): boolean {

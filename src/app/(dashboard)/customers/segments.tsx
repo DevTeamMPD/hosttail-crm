@@ -74,6 +74,12 @@ export function SegmentBar({
         </span>
       ))}
 
+      {canManage && activeId && (
+        <Link href={`/marketing/new?segment=${activeId}`} className="ml-1 text-xs font-medium" style={{ color: 'var(--ht-line)' }}>
+          ส่ง LINE ถึงกลุ่มนี้ →
+        </Link>
+      )}
+
       {canSave &&
         (naming ? (
           <span className="inline-flex items-center gap-1.5">
