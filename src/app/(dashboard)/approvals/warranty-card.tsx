@@ -37,7 +37,11 @@ interface Props {
 }
 
 export function WarrantyCard({ registration: reg, member, canAct }: Props) {
+  // Comma-separated: one claim may cover several split bills.
   const [billNo, setBillNo] = useState(reg.options.length === 1 ? reg.options[0].ref : reg.orderRef)
+  const picked = billNo.split(',').map((b) => b.trim()).filter(Boolean)
+  const toggleBill = (ref: string) =>
+    setBillNo((picked.includes(ref) ? picked.filter((b) => b !== ref) : [...picked.filter((b) => reg.options.some((o) => o.ref === b)), ref]).join(', '))
   const [receiptNo, setReceiptNo] = useState(reg.orderRef)
   const [items, setItems] = useState<ManualItem[]>([{ sku: '', productName: '', quantity: 1 }])
   const [amount, setAmount] = useState('')
@@ -109,27 +113,36 @@ export function WarrantyCard({ registration: reg, member, canAct }: Props) {
 
       {approval === 'lookup' && reg.options.length > 0 && (
         <div className="mt-3 space-y-1.5">
-          <p className="text-xs text-gray-500">บิลที่ระบบหาเจอ — กดเลือกแล้วตรวจก่อนอนุมัติ</p>
+          <p className="text-xs text-gray-500">บิลที่ระบบหาเจอ — กดเลือกได้หลายบิล (บิลแยก) แล้วตรวจก่อนอนุมัติ</p>
           {reg.options.some((o) => o.viaPhone) && (
             <p className="rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--ht-warning-bg)', color: 'var(--ht-warning)' }}>
               ไม่พบเลข {reg.orderRef} — บิลด้านล่างหาจากเบอร์โทรของลูกค้า ลูกค้าอาจเลือกช่องทางผิด ตรวจสินค้า/วันที่ให้ตรงก่อนอนุมัติ
             </p>
           )}
           {reg.options.map((o) => {
-            const selected = billNo === o.ref
+            const selected = picked.includes(o.ref)
             return (
               <button
                 key={o.orderNo}
                 type="button"
-                onClick={() => setBillNo(o.ref)}
-                className="block w-full rounded-lg border px-3 py-2 text-left text-xs hover:bg-gray-50"
+                onClick={() => toggleBill(o.ref)}
+                aria-pressed={selected}
+                className="flex w-full items-start gap-2 rounded-lg border px-3 py-2 text-left text-xs hover:bg-gray-50"
                 style={selected ? { borderColor: 'var(--ht-primary)', background: 'var(--ht-bg-from)' } : undefined}
               >
+                <span
+                  className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border text-[10px] text-white"
+                  style={selected ? { background: 'var(--ht-primary)', borderColor: 'var(--ht-primary)' } : { borderColor: 'var(--ht-check-border)' }}
+                >
+                  {selected ? '✓' : ''}
+                </span>
+                <span className="min-w-0">
                 <span className="font-mono font-medium text-gray-900">{o.orderNo}</span>
                 {o.ref !== o.orderNo ? <span className="font-mono text-gray-500"> · {o.ref}</span> : null}
                 {o.date ? <span className="text-gray-500"> · {o.date}</span> : null}
                 {o.amount !== null ? <span className="text-gray-500"> · ฿{o.amount.toLocaleString()}</span> : null}
                 {o.products ? <span className="mt-0.5 block text-gray-500">{o.products}</span> : null}
+                </span>
               </button>
             )
           })}
@@ -231,8 +244,8 @@ export function WarrantyCard({ registration: reg, member, canAct }: Props) {
           <Input
             value={billNo}
             onChange={(e) => setBillNo(e.target.value)}
-            placeholder="เลขบิลที่ถูกต้อง"
-            className="w-56 font-mono"
+            placeholder="เลขบิล (หลายบิลคั่นด้วย ,)"
+            className="w-72 font-mono"
           />
           <Button
             type="button"
@@ -241,7 +254,7 @@ export function WarrantyCard({ registration: reg, member, canAct }: Props) {
             className="text-white"
             style={{ background: 'var(--ht-success)' }}
           >
-            {pending ? 'กำลังตรวจสอบ...' : 'อนุมัติ'}
+            {pending ? 'กำลังตรวจสอบ...' : picked.length > 1 ? `อนุมัติ ${picked.length} บิล` : 'อนุมัติ'}
           </Button>
           <Button type="button" variant="outline" onClick={() => setMode('rejecting')}>
             ปฏิเสธ
