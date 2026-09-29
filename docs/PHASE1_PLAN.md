@@ -11,8 +11,13 @@ auto-match ออเดอร์, ผูกบัญชีแพลตฟอร�
 ## ขอบเขต
 
 1. **หน้าลงทะเบียนใน LINE OA (LIFF)** — ลูกค้ากรอกข้อมูลและใส่เลขคำสั่งซื้อตามช่องทาง
-2. **บันทึกเข้า Supabase ไว้เฉยๆ** — ไม่มีการ merge ข้อมูล, ไม่ auto-match, ไม่ให้แต้ม
+2. **บันทึกเข้า Supabase ไว้เฉยๆ** — ไม่ auto-match, ไม่ให้แต้ม
 3. **Dashboard CRM หลังบ้าน** — ใช้ดูข้อมูลสมาชิกและรายการลงทะเบียน
+4. **เชื่อมบัญชีลูกค้าเดิม (ตัดสินใจแล้ว 2026-09-29)** — สมาชิกเดิม 72 คนจาก Sheet มี LINE UID
+   คนละเลขกับระบบใหม่ (คนละ Provider) เมื่อลูกค้ากรอกเบอร์ในฟอร์มแล้วตรงกับสมาชิกเดิม
+   ระบบสร้างคำขอในแท็บ "ขอเชื่อมบัญชีเดิม" แอดมินกดอนุมัติจึงจะย้ายประวัติรับประกันเดิม
+   มาที่บัญชีใหม่ (`ht_relink_requests` → `ht_approve_relink_request` → `ht_merge_members`)
+   ห้ามรวมอัตโนมัติ และบัญชีทดสอบเชื่อมกับลูกค้าจริงไม่ได้
 
 ## หน้าฟอร์ม: 2 Flow
 
@@ -43,8 +48,7 @@ auto-match ออเดอร์, ผูกบัญชีแพลตฟอร�
 
 - แต้ม/ระดับ: `ht_points_config`, `ht_tiers`, `ht_points_ledger`, `ht_finalize_registration`,
   `/api/liff/points`, หน้า "สิทธิพิเศษ"
-- Merge สมาชิกเดิม: `ht_merge_members`, `ht_relink_requests`, `ht_approve_relink_request`,
-  `/api/liff/relink`, ปุ่ม "เคยเป็นสมาชิกแล้ว?"
+- ~~Merge สมาชิกเดิม~~ — ย้ายเข้าขอบเขตแล้ว ดูข้อ 4 ด้านบน
 - ผูกบัญชีแพลตฟอร์ม: `ht_member_platform_accounts`, `bind-account.ts`
 - Auto-match กับ `sales_transaction` ตอนลูกค้าส่งฟอร์ม (`resolve.ts`)
 
