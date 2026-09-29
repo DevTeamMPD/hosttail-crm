@@ -1083,6 +1083,146 @@ export interface Database {
         Update: { added_at?: string; added_by?: string | null; member_id?: string; segment_id?: string }
         Relationships: []
       }
+      ht_campaigns: {
+        Row: {
+          aggregation_unit: string | null
+          created_at: string
+          created_by: string | null
+          dry_run: boolean
+          id: string
+          insight: Json | null
+          insight_fetched_at: string | null
+          messages: Json
+          name: string
+          recipient_count: number
+          segment_id: string | null
+          segment_name: string | null
+          sending_started_at: string | null
+          sent_at: string | null
+          sent_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          aggregation_unit?: string | null
+          created_at?: string
+          created_by?: string | null
+          dry_run?: boolean
+          id?: string
+          insight?: Json | null
+          insight_fetched_at?: string | null
+          messages?: Json
+          name: string
+          recipient_count?: number
+          segment_id?: string | null
+          segment_name?: string | null
+          sending_started_at?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          aggregation_unit?: string | null
+          created_at?: string
+          created_by?: string | null
+          dry_run?: boolean
+          id?: string
+          insight?: Json | null
+          insight_fetched_at?: string | null
+          messages?: Json
+          name?: string
+          recipient_count?: number
+          segment_id?: string | null
+          segment_name?: string | null
+          sending_started_at?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ht_campaign_recipients: {
+        Row: {
+          campaign_id: string
+          click_count: number
+          error: string | null
+          first_clicked_at: string | null
+          id: string
+          last_clicked_at: string | null
+          line_uid: string
+          member_id: string
+          sent_at: string | null
+          status: string
+          token: string
+        }
+        Insert: {
+          campaign_id: string
+          click_count?: number
+          error?: string | null
+          first_clicked_at?: string | null
+          id?: string
+          last_clicked_at?: string | null
+          line_uid: string
+          member_id: string
+          sent_at?: string | null
+          status?: string
+          token: string
+        }
+        Update: {
+          campaign_id?: string
+          click_count?: number
+          error?: string | null
+          first_clicked_at?: string | null
+          id?: string
+          last_clicked_at?: string | null
+          line_uid?: string
+          member_id?: string
+          sent_at?: string | null
+          status?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'ht_campaign_recipients_member_id_fkey'
+            columns: ['member_id']
+            isOneToOne: false
+            referencedRelation: 'ht_members'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      ht_campaign_clicks: {
+        Row: {
+          campaign_id: string
+          clicked_at: string
+          id: number
+          link_index: number
+          recipient_id: string
+          url: string
+          user_agent: string | null
+        }
+        Insert: {
+          campaign_id: string
+          clicked_at?: string
+          id?: never
+          link_index: number
+          recipient_id: string
+          url: string
+          user_agent?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          clicked_at?: string
+          id?: never
+          link_index?: number
+          recipient_id?: string
+          url?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       ht_rate_limits: {
         Row: { count: number; key: string; window_start: string }
         Insert: { count?: number; key: string; window_start?: string }
@@ -1091,6 +1231,22 @@ export interface Database {
       }
     }
     Views: {
+      ht_v_campaign_stats: {
+        Row: {
+          campaign_id: string | null
+          clickers: number | null
+          clicks: number | null
+          failed: number | null
+          pending: number | null
+          recipients: number | null
+          sent: number | null
+        }
+        Relationships: []
+      }
+      ht_v_campaign_link_stats: {
+        Row: { campaign_id: string | null; clickers: number | null; clicks: number | null; link_index: number | null }
+        Relationships: []
+      }
       ht_v_member_consent: {
         Row: {
           granted: boolean | null
@@ -1110,6 +1266,10 @@ export interface Database {
       }
     }
     Functions: {
+      ht_record_campaign_click: {
+        Args: { p_token: string; p_link_index: number; p_url: string; p_user_agent: string }
+        Returns: undefined
+      }
       ht_check_rate_limit: {
         Args: { p_key: string; p_limit: number; p_window_ms: number }
         Returns: boolean

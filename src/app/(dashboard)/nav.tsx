@@ -10,6 +10,7 @@ import { isPathAllowed, type HtRole } from '@/lib/permissions'
 const LINKS = [
   { href: '/overview', label: 'ภาพรวม' },
   { href: '/customers', label: 'ลูกค้า' },
+  { href: '/marketing', label: 'การตลาด' },
   { href: '/approvals', label: 'รออนุมัติ', badge: true },
 ] as const
 

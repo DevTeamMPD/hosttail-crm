@@ -7,7 +7,7 @@ import { roleAtLeast } from '@/lib/permissions'
 import { formatThaiDate } from '@/lib/format-th'
 import { PET_TYPES } from '@/lib/brand'
 import { maskPhone } from '@/lib/mask'
-import { parseCustomerFilters, customerFiltersToParams } from '@/lib/customer-filters'
+import { parseCustomerFilters, customerFiltersToParams, applyCustomerFilters } from '@/lib/customer-filters'
 import { CustomerSearch } from './search'
 import { SegmentBar } from './segments'
 import { BulkBar, RowCheckbox, SelectAllCheckbox, SelectionProvider } from './selection'
@@ -35,18 +35,11 @@ interface Props {
   }>
 }
 
-/** The day after a YYYY-MM-DD date, so a `to` filter includes that whole day. */
-function nextDay(date: string): string {
-  const d = new Date(`${date}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + 1)
-  return d.toISOString().slice(0, 10)
-}
-
 export default async function CustomersPage({ searchParams }: Props) {
   const params = await searchParams
   const page = Math.max(1, Number(params.page ?? '1') || 1)
   const filters = parseCustomerFilters(params)
-  const { q, from, to } = filters
+  const { from, to } = filters
 
   const session = await getStaffSession()
   // A viewer can see that a customer exists without being handed a list of
@@ -73,20 +66,7 @@ export default async function CustomersPage({ searchParams }: Props) {
     .order('registered_at', { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1)
 
-  if (q) {
-    // Digits-only input is almost always a phone; anything else is a name.
-    const digits = q.replace(/\D/g, '')
-    query = digits.length >= 4 ? query.ilike('phone', `%${digits}%`) : query.ilike('full_name', `%${q}%`)
-  }
-  if (filters.source) query = query.eq('source', filters.source)
-  // Dates are Bangkok calendar days, whatever timezone the server runs in.
-  if (from) query = query.gte('registered_at', `${from}T00:00:00+07:00`)
-  if (to) query = query.lt('registered_at', `${nextDay(to)}T00:00:00+07:00`)
-  if (filters.pets.length) {
-    query = filters.petMode === 'all' ? query.contains('pet_types', filters.pets) : query.overlaps('pet_types', filters.pets)
-  }
-  if (filters.provinces.length) query = query.in('province_code', filters.provinces)
-  if (segMemberIds) query = query.in('id', segMemberIds.length ? segMemberIds : ['00000000-0000-0000-0000-000000000000'])
+  query = applyCustomerFilters(query, filters, segMemberIds)
   if (params.bound === 'no') query = query.eq('is_test', false)
 
   const { data: members, count, error } = await query

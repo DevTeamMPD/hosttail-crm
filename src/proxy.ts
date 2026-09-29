@@ -22,6 +22,8 @@ import { isPathAllowed, getHomePath } from '@/lib/permissions'
  *                call to /login, LINE would see a non-2xx/redirect response
  *                enough times to disable the webhook endpoint permanently.
  *   /api/cron/*  Vercel Cron. Auth is verifyCronRequest() against CRON_SECRET.
+ *   /c/*         Tracked links in marketing campaigns, tapped by customers in
+ *                LINE. The per-recipient token in the URL is the only auth.
  *   /login       Phase 2 (not built yet) -- allowlisted so it can add a
  *                Supabase Auth session without ever being unreachable itself.
  *   /api/auth/*  Phase 2 (not built yet) -- login/logout route handlers.
@@ -35,6 +37,7 @@ const PUBLIC_PREFIXES = [
   '/api/liff',
   '/api/line',
   '/api/cron',
+  '/c',
   '/login',
   '/api/auth',
 ]
