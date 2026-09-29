@@ -11,7 +11,7 @@ import { maskPhone } from '@/lib/mask'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { listBoundOrders } from '@/lib/orders/bound-orders'
 import { normalizeOrderKey } from '@/lib/orders/normalize'
-import { ConnectAccount, ManualWarranty, RegisterOrderButton, RevokeBinding } from './account-panel'
+import { ConnectAccount, EditRegistration, ManualWarranty, RegisterOrderButton, RevokeBinding } from './account-panel'
 
 export const metadata: Metadata = { title: 'รายละเอียดลูกค้า — Hosttail CRM' }
 export const dynamic = 'force-dynamic'
@@ -182,6 +182,18 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                     </div>
                     <RegStatus status={r.status} />
                   </div>
+                  {canRegister && (
+                    <div className="flex justify-end">
+                      <EditRegistration
+                        key={`${r.channel}|${r.order_ref_raw}|${r.review_note ?? ''}`}
+                        memberId={id}
+                        registrationId={r.id}
+                        channel={r.channel}
+                        orderRef={r.order_ref_raw}
+                        note={r.review_note}
+                      />
+                    </div>
+                  )}
                   {r.review_note && <p className="mt-1 text-xs text-gray-400">หมายเหตุ: {r.review_note}</p>}
                   {r.receipt_path && (
                     receiptUrl.has(r.receipt_path) ? (

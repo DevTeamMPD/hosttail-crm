@@ -344,3 +344,77 @@ export async function revokeBinding(bindingId: string, memberId: string, reason:
     return fail(err)
   }
 }
+
+export interface EditRegistrationInput {
+  channel: string
+  orderRef: string
+  note: string
+}
+
+/**
+ * Correct what the customer entered on a registration -- usually a wrong
+ * channel (picked Shopee when the bill is really from Facebook) or a typo in
+ * the order number. Only the customer-entered fields change; matched bill,
+ * items, points and warranty dates stay exactly as they are. The ref is
+ * stored as an order id (the admin types a real bill/order number), same as
+ * addManualWarranty. Audited with the before/after values.
+ */
+export async function editRegistration(
+  memberId: string,
+  registrationId: string,
+  input: EditRegistrationInput
+): Promise<ConnectResult> {
+  try {
+    const staff = await requireRole('marketing')
+    const supabase = createAdminClient()
+
+    if (!CHANNELS.some((c) => c.value === input.channel)) return { ok: false, message: 'กรุณาเลือกช่องทาง' }
+    const orderRef = input.orderRef.trim()
+    if (!orderRef) return { ok: false, message: 'กรุณากรอกเลขคำสั่งซื้อ' }
+    const note = input.note.trim() || null
+
+    const { data: before } = await supabase
+      .from('ht_warranty_registrations')
+      .select('id, member_id, channel, order_ref_kind, order_ref_raw, review_note')
+      .eq('id', registrationId)
+      .limit(1)
+      .maybeSingle()
+    if (!before || before.member_id !== memberId) return { ok: false, message: 'ไม่พบรายการนี้ของลูกค้าคนนี้' }
+
+    const after = { channel: input.channel, order_ref_kind: 'order_id' as const, order_ref_raw: orderRef, review_note: note }
+    if (
+      before.channel === after.channel &&
+      before.order_ref_raw === after.order_ref_raw &&
+      before.order_ref_kind === after.order_ref_kind &&
+      (before.review_note ?? null) === note
+    ) {
+      return { ok: true, message: 'ไม่มีการเปลี่ยนแปลง' }
+    }
+
+    const { error } = await supabase.from('ht_warranty_registrations').update(after).eq('id', registrationId)
+    if (error) {
+      if (error.code === '23505') return { ok: false, message: 'ลูกค้าคนนี้มีรายการของเลขคำสั่งซื้อนี้อยู่แล้ว' }
+      return { ok: false, message: `บันทึกไม่สำเร็จ: ${error.message}` }
+    }
+
+    await supabase.from('ht_audit_log').insert({
+      actor_id: staff.staffId,
+      action: 'warranty_registration_edited',
+      entity: 'ht_warranty_registrations',
+      entity_id: registrationId,
+      before: {
+        channel: before.channel,
+        order_ref_kind: before.order_ref_kind,
+        order_ref_raw: before.order_ref_raw,
+        review_note: before.review_note,
+      },
+      after,
+    })
+
+    revalidatePath(`/customers/${memberId}`)
+    revalidatePath('/approvals')
+    return { ok: true, message: 'แก้ไขรายการแล้ว' }
+  } catch (err) {
+    return fail(err)
+  }
+}

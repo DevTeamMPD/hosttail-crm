@@ -1,12 +1,16 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 import { getStaffSession } from '@/lib/session'
 import { roleAtLeast } from '@/lib/permissions'
 import { formatThaiDate } from '@/lib/format-th'
 import { PET_TYPES } from '@/lib/brand'
 import { maskPhone } from '@/lib/mask'
+import { parseCustomerFilters, customerFiltersToParams } from '@/lib/customer-filters'
 import { CustomerSearch } from './search'
+import { SegmentBar } from './segments'
+import { BulkBar, RowCheckbox, SelectAllCheckbox, SelectionProvider } from './selection'
 
 export const metadata: Metadata = { title: 'ลูกค้า — Hosttail CRM' }
 export const dynamic = 'force-dynamic'
@@ -17,10 +21,19 @@ const PAGE_SIZE = 25
 const PET_LABEL = new Map<string, string>(PET_TYPES.map((p) => [p.value, p.label]))
 
 interface Props {
-  searchParams: Promise<{ q?: string; page?: string; source?: string; bound?: string; from?: string; to?: string }>
+  searchParams: Promise<{
+    q?: string
+    page?: string
+    source?: string
+    bound?: string
+    from?: string
+    to?: string
+    pet?: string
+    petmode?: string
+    prov?: string
+    seg?: string
+  }>
 }
-
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 /** The day after a YYYY-MM-DD date, so a `to` filter includes that whole day. */
 function nextDay(date: string): string {
@@ -32,19 +45,28 @@ function nextDay(date: string): string {
 export default async function CustomersPage({ searchParams }: Props) {
   const params = await searchParams
   const page = Math.max(1, Number(params.page ?? '1') || 1)
-  const q = (params.q ?? '').trim()
+  const filters = parseCustomerFilters(params)
+  const { q, from, to } = filters
 
   const session = await getStaffSession()
   // A viewer can see that a customer exists without being handed a list of
   // reachable phone numbers. Marketing and admin need the real thing to
   // resolve support cases.
   const canSeePhone = roleAtLeast(session?.role, 'marketing')
+  const canManageSegments = roleAtLeast(session?.role, 'marketing')
 
   const supabase = await createClient()
 
+  // A manual group narrows the list to its members before anything else.
+  const segMemberIds = filters.seg
+    ? ((await supabase.from('ht_segment_members').select('member_id').eq('segment_id', filters.seg)).data ?? []).map(
+        (r) => r.member_id
+      )
+    : null
+
   let query = supabase
     .from('ht_members')
-    .select('id, full_name, line_display_name, phone, province_code, pet_types, points_balance, source, registered_at, is_test', {
+    .select('id, full_name, line_display_name, line_picture_url, phone, province_code, pet_types, points_balance, source, registered_at, is_test', {
       count: 'exact',
     })
     .eq('status', 'active')
@@ -56,12 +78,15 @@ export default async function CustomersPage({ searchParams }: Props) {
     const digits = q.replace(/\D/g, '')
     query = digits.length >= 4 ? query.ilike('phone', `%${digits}%`) : query.ilike('full_name', `%${q}%`)
   }
-  if (params.source) query = query.eq('source', params.source)
+  if (filters.source) query = query.eq('source', filters.source)
   // Dates are Bangkok calendar days, whatever timezone the server runs in.
-  const from = params.from && ISO_DATE.test(params.from) ? params.from : ''
-  const to = params.to && ISO_DATE.test(params.to) ? params.to : ''
   if (from) query = query.gte('registered_at', `${from}T00:00:00+07:00`)
   if (to) query = query.lt('registered_at', `${nextDay(to)}T00:00:00+07:00`)
+  if (filters.pets.length) {
+    query = filters.petMode === 'all' ? query.contains('pet_types', filters.pets) : query.overlaps('pet_types', filters.pets)
+  }
+  if (filters.provinces.length) query = query.in('province_code', filters.provinces)
+  if (segMemberIds) query = query.in('id', segMemberIds.length ? segMemberIds : ['00000000-0000-0000-0000-000000000000'])
   if (params.bound === 'no') query = query.eq('is_test', false)
 
   const { data: members, count, error } = await query
@@ -69,7 +94,7 @@ export default async function CustomersPage({ searchParams }: Props) {
   // This list deliberately KEEPS test accounts (tagged) so staff can find and
   // inspect them -- unlike /overview, whose KPIs exclude them. Spelling that
   // out here stops the two pages looking like they disagree.
-  const [{ count: testCount }, { data: provinces }, { data: bindings }] = await Promise.all([
+  const [{ count: testCount }, { data: provinces }, { data: bindings }, { data: segments }] = await Promise.all([
     supabase.from('ht_members').select('*', { count: 'exact', head: true }).eq('status', 'active').eq('is_test', true),
     supabase.from('ht_provinces').select('code, name_th'),
     supabase
@@ -77,10 +102,13 @@ export default async function CustomersPage({ searchParams }: Props) {
       .select('member_id')
       .eq('status', 'active')
       .in('member_id', (members ?? []).map((m) => m.id).length ? (members ?? []).map((m) => m.id) : ['']),
+    // Errors (e.g. the ht_segments migration not applied yet) just hide the bar.
+    supabase.from('ht_segments').select('id, name, filters, kind').order('name'),
   ])
   const provinceName = new Map((provinces ?? []).map((p) => [p.code, p.name_th]))
   const boundIds = new Set((bindings ?? []).map((b) => b.member_id))
 
+  const manualSegments = (segments ?? []).filter((sg) => sg.kind === 'manual').map((sg) => ({ id: sg.id, name: sg.name }))
   const total = count ?? 0
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -95,8 +123,35 @@ export default async function CustomersPage({ searchParams }: Props) {
             {testCount ? ` · รวมบัญชีทดสอบ ${testCount} รายการ (หน้าภาพรวมไม่นับรวม)` : ''}
           </p>
         </div>
-        <CustomerSearch initialQuery={q} initialSource={params.source ?? ''} initialFrom={from} initialTo={to} />
+        <CustomerSearch
+          initial={filters}
+          provinces={(provinces ?? []).map((p) => ({ code: p.code, name: p.name_th })).sort((a, b) => a.name.localeCompare(b.name, 'th'))}
+        />
       </div>
+
+      <SegmentBar
+        segments={(segments ?? []).map((sg) => ({
+          id: sg.id,
+          name: sg.name,
+          manual: sg.kind === 'manual',
+          // Re-serialize: jsonb does not keep key order, and this string is
+          // compared against the current URL to highlight the active segment.
+          query:
+            sg.kind === 'manual'
+              ? customerFiltersToParams({ seg: sg.id }).toString()
+              : customerFiltersToParams(parseCustomerFilters((sg.filters ?? {}) as Record<string, unknown>)).toString(),
+        }))}
+        currentQuery={customerFiltersToParams(filters).toString()}
+        canManage={canManageSegments}
+      />
+
+      <SelectionProvider>
+      {canManageSegments && (
+        <BulkBar
+          manualSegments={manualSegments}
+          currentSeg={manualSegments.find((sg) => sg.id === filters.seg) ?? null}
+        />
+      )}
 
       {error && (
         <p className="rounded-lg px-3 py-2 text-sm" style={{ background: '#fdecea', color: 'var(--ht-error)' }}>
@@ -108,6 +163,11 @@ export default async function CustomersPage({ searchParams }: Props) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 text-left text-xs text-gray-500">
+              {canManageSegments && (
+                <th className="w-10 py-2.5 pl-4">
+                  <SelectAllCheckbox ids={(members ?? []).map((m) => m.id)} />
+                </th>
+              )}
               <th className="px-4 py-2.5 font-medium">ชื่อ</th>
               <th className="px-4 py-2.5 font-medium">เบอร์โทร</th>
               <th className="px-4 py-2.5 font-medium">จังหวัด</th>
@@ -120,20 +180,41 @@ export default async function CustomersPage({ searchParams }: Props) {
           <tbody className="divide-y divide-gray-100">
             {!members?.length && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-gray-400">
+                <td colSpan={canManageSegments ? 8 : 7} className="px-4 py-10 text-center text-gray-400">
                   ไม่พบลูกค้าตามเงื่อนไขนี้
                 </td>
               </tr>
             )}
             {members?.map((m) => (
               <tr key={m.id} className="hover:bg-gray-50">
+                {canManageSegments && (
+                  <td className="py-2.5 pl-4">
+                    <RowCheckbox id={m.id} label={m.full_name ?? m.line_display_name ?? ''} />
+                  </td>
+                )}
                 <td className="px-4 py-2.5">
-                  <Link href={`/customers/${m.id}`} className="font-medium" style={{ color: 'var(--ht-primary)' }}>
-                    {m.full_name ?? m.line_display_name ?? '(ไม่ระบุชื่อ)'}
-                  </Link>
-                  <div className="flex gap-1 pt-0.5">
-                    {m.source === 'legacy_sheet' && <Tag text="สมาชิกเดิม" color="#6b7280" bg="#f3f4f6" />}
-                    {m.is_test && <Tag text="บัญชีทดสอบ" color="var(--ht-warning)" bg="var(--ht-warning-bg)" />}
+                  <div className="flex items-center gap-3">
+                    {m.line_picture_url ? (
+                      <Image
+                        src={m.line_picture_url}
+                        alt=""
+                        width={36}
+                        height={36}
+                        className="h-9 w-9 shrink-0 rounded-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="h-9 w-9 shrink-0 rounded-full bg-gray-200" />
+                    )}
+                    <div className="min-w-0">
+                      <Link href={`/customers/${m.id}`} className="font-medium" style={{ color: 'var(--ht-primary)' }}>
+                        {m.full_name ?? m.line_display_name ?? '(ไม่ระบุชื่อ)'}
+                      </Link>
+                      <div className="flex gap-1 pt-0.5">
+                        {m.source === 'legacy_sheet' && <Tag text="สมาชิกเดิม" color="#6b7280" bg="#f3f4f6" />}
+                        {m.is_test && <Tag text="บัญชีทดสอบ" color="var(--ht-warning)" bg="var(--ht-warning-bg)" />}
+                      </div>
+                    </div>
                   </div>
                 </td>
                 <td className="px-4 py-2.5 text-gray-600">
@@ -159,6 +240,7 @@ export default async function CustomersPage({ searchParams }: Props) {
           </tbody>
         </table>
       </div>
+      </SelectionProvider>
 
       {lastPage > 1 && (
         <div className="flex items-center justify-between text-sm">
