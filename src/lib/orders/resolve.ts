@@ -55,6 +55,42 @@ const SELECT =
   'order_no,bill_no,sku,product_name,quantity,amount,keyword,order_status,txn_date,transfer_date'
 
 /**
+ * JST statuses a bill keeps after it has been split into shipments. The
+ * parent still lists every SKU, so counting it next to its children doubles
+ * the items and the amount (seen on Shopee 26071945TDF6C4: parent 281245
+ * "Abnormal Order" + children 281345 / 281346 "Shipped").
+ */
+export const SPLIT_PARENT_STATUSES = ['Abnormal Order', 'ออเดอร์ถูกแยกบิล']
+
+/** Split shipments of one platform order are at most this far apart. */
+const SPLIT_WINDOW_DAYS = 60
+
+/**
+ * One platform order id (bill_no) that JST split into several internal
+ * orders: keep the child shipments, drop a split parent when children exist,
+ * and label the result with the kept order numbers ("281345+281346"). A bill
+ * that was never split, or a lone split parent, is returned as is.
+ *
+ * Returns null when the orders are too far apart in time to be one purchase
+ * -- then it is a real collision and a human has to pick.
+ */
+export function collapseSplitBill(lines: OrderLine[]): { orderNo: string; lines: OrderLine[] } | null {
+  const orderNos = [...new Set(lines.map(l => l.order_no))].sort()
+  if (orderNos.length <= 1) return { orderNo: orderNos[0] ?? '', lines }
+
+  const isParent = (no: string) =>
+    lines.filter(l => l.order_no === no).every(l => SPLIT_PARENT_STATUSES.includes(l.order_status ?? ''))
+  const parents = orderNos.filter(isParent)
+  const kept = parents.length > 0 && parents.length < orderNos.length ? orderNos.filter(n => !parents.includes(n)) : orderNos
+  const keptLines = lines.filter(l => kept.includes(l.order_no))
+
+  const days = keptLines.map(l => l.txn_date).filter(Boolean).map(d => new Date(d as string).getTime())
+  if (days.length && (Math.max(...days) - Math.min(...days)) / 86_400_000 > SPLIT_WINDOW_DAYS) return null
+
+  return { orderNo: kept.join('+'), lines: keptLines }
+}
+
+/**
  * Resolve a customer-entered order reference against sales_transaction.
  *
  * Column semantics were verified against live data on 2026-09-15 — schema.sql
@@ -92,8 +128,20 @@ export async function resolveByOrderRef(
     if (error) throw new Error(`resolveByOrderRef(${column}): ${error.message}`)
     if (!data?.length) continue
 
-    const lines = data as OrderLine[]
-    const orderNos = [...new Set(lines.map(l => l.order_no))]
+    let lines = data as OrderLine[]
+    let orderNos = [...new Set(lines.map(l => l.order_no))]
+
+    // A platform order id (bill_no) is unique on the platform, so several JST
+    // orders behind it are split shipments of ONE purchase, not a collision.
+    // (~4% of Hosttail bills since 2025 are split.) Event bill_no is a short
+    // JST sequence instead, so it keeps the collision rule below.
+    if (orderNos.length > 1 && column === 'bill_no' && scope === 'online') {
+      const merged = collapseSplitBill(lines)
+      if (merged) {
+        lines = merged.lines
+        orderNos = [merged.orderNo]
+      }
+    }
 
     // A short numeric reference can collide across months — the unique key is
     // (order_no, sku, transfer_date, line_seq), so order_no alone is not unique.
@@ -117,6 +165,21 @@ export async function resolveByOrderRef(
     if (!live.some(l => l.transfer_date)) return { status: 'unsettled', orderNo, lines }
 
     return { status: 'matched', matchedOn: column, orderNo, lines, netAmount: sumLive(lines) }
+  }
+
+  // Customers sometimes type the parcel tracking number from the shipping
+  // label instead of the order id. order_tracking maps it back (read-only).
+  if (scope === 'online') {
+    const { data: tracked } = await supabase
+      .from('order_tracking')
+      .select('online_order')
+      .in('tracking_number', keys)
+      .ilike('shop', '%hosttail%')
+      .limit(5)
+    const orderIds = [...new Set((tracked ?? []).map(t => t.online_order).filter(Boolean) as string[])]
+    if (orderIds.length === 1 && !keys.includes(normalizeOrderKey(orderIds[0]) ?? '')) {
+      return resolveByOrderRef(supabase, orderIds[0], scope)
+    }
   }
 
   return { status: 'not_found' }

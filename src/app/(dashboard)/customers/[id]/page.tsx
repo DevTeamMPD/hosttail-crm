@@ -11,7 +11,7 @@ import { maskPhone } from '@/lib/mask'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { listBoundOrders } from '@/lib/orders/bound-orders'
 import { normalizeOrderKey } from '@/lib/orders/normalize'
-import { ConnectAccount, RegisterOrderButton, RevokeBinding } from './account-panel'
+import { ConnectAccount, ManualWarranty, RegisterOrderButton, RevokeBinding } from './account-panel'
 
 export const metadata: Metadata = { title: 'รายละเอียดลูกค้า — Hosttail CRM' }
 export const dynamic = 'force-dynamic'
@@ -52,7 +52,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     await Promise.all([
       supabase
         .from('ht_warranty_registrations')
-        .select('id, channel, order_ref_raw, status, link_status, matched_order_no, matched_amount, submitted_at, review_note')
+        .select('id, channel, order_ref_raw, status, link_status, matched_order_no, matched_amount, submitted_at, review_note, receipt_path')
         .eq('member_id', id)
         .order('submitted_at', { ascending: false }),
       supabase
@@ -77,9 +77,21 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       supabase.from('ht_member_consents').select('kind, granted, source').eq('member_id', id),
     ])
 
+  // Receipts sit in a private bucket: short-lived signed URLs, as on /approvals.
+  const admin = createAdminClient()
+  const receiptPaths = (regs ?? []).map((r) => r.receipt_path).filter(Boolean) as string[]
+  const receiptUrl = new Map<string, string>()
+  if (receiptPaths.length) {
+    const { data: urls } = await admin.storage.from('ht-receipts').createSignedUrls(receiptPaths, 60 * 10)
+    for (const [i, u] of (urls ?? []).entries()) if (u.signedUrl) receiptUrl.set(receiptPaths[i], u.signedUrl)
+  }
+  const pendingRegs = (regs ?? [])
+    .filter((r) => r.status === 'pending')
+    .map((r) => ({ id: r.id, label: `${channelMeta(r.channel).label} · ${r.order_ref_raw}`, orderRef: r.order_ref_raw }))
+
   // Orders placed from this member's bound accounts, and which of them are
   // already registered for warranty (by matched bill, or by the id typed).
-  const boundOrders = await listBoundOrders(createAdminClient(), id)
+  const boundOrders = await listBoundOrders(admin, id)
   const registeredOrderNos = new Set((regs ?? []).map((r) => r.matched_order_no).filter(Boolean))
   const registeredKeys = new Set((regs ?? []).map((r) => normalizeOrderKey(r.order_ref_raw)).filter(Boolean))
   const isRegistered = (o: { orderNo: string; billNo: string }) =>
@@ -143,6 +155,11 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 
       <section className="rounded-2xl border border-gray-200 bg-white">
         <SectionHeader title="การลงทะเบียนรับประกัน" count={regs?.length ?? 0} />
+        {canRegister && !member.is_test && (
+          <div className="border-b border-gray-100 px-4 py-3">
+            <ManualWarranty memberId={id} pending={pendingRegs} />
+          </div>
+        )}
         {!regs?.length ? (
           <Empty text="ยังไม่มีการลงทะเบียน" />
         ) : (
@@ -166,6 +183,28 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                     <RegStatus status={r.status} />
                   </div>
                   {r.review_note && <p className="mt-1 text-xs text-gray-400">หมายเหตุ: {r.review_note}</p>}
+                  {r.receipt_path && (
+                    receiptUrl.has(r.receipt_path) ? (
+                      <a
+                        href={receiptUrl.get(r.receipt_path)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-block overflow-hidden rounded-lg border border-gray-200 hover:opacity-90"
+                        title="เปิดรูปใบเสร็จขนาดเต็ม"
+                      >
+                        <Image
+                          src={receiptUrl.get(r.receipt_path) as string}
+                          alt="รูปใบเสร็จที่ลูกค้าแนบ"
+                          width={160}
+                          height={200}
+                          unoptimized
+                          className="h-[200px] w-[160px] bg-gray-50 object-contain"
+                        />
+                      </a>
+                    ) : (
+                      <p className="mt-1 text-xs text-gray-400">มีรูปใบเสร็จแต่เปิดไม่ได้ (ไฟล์อาจถูกลบ)</p>
+                    )
+                  )}
                   {own.length > 0 && (
                     <ul className="mt-2 space-y-1 border-l-2 border-gray-100 pl-3">
                       {own.map((i) => {

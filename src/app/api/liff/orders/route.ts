@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { readLiffSession } from '@/lib/liff/session'
 import { rateLimit } from '@/lib/rate-limit'
 import { SubmitRegistrationSchema } from '@/lib/orders/schema'
-import { submitRegistration, SubmitError } from '@/lib/orders/submit'
+import { submitRegistration, SubmitError, type SubmitResult } from '@/lib/orders/submit'
+import { pushLineMessage } from '@/lib/line/push'
 
 export const runtime = 'nodejs'
 
@@ -29,6 +30,9 @@ export async function POST(req: Request) {
   const supabase = createAdminClient()
   try {
     const result = await submitRegistration(supabase, session.memberId, parsed.data)
+    // Notify the customer in LINE OA after the response is sent -- a push
+    // failure must never turn a successful registration into an error.
+    after(() => notifyRegistration(supabase, session.memberId, result))
     return NextResponse.json(result, { status: 201 })
   } catch (err) {
     if (err instanceof SubmitError) {
@@ -37,6 +41,26 @@ export async function POST(req: Request) {
     console.error('[api/liff/orders POST]', err)
     return NextResponse.json({ error: 'internal_error' }, { status: 500 })
   }
+}
+
+async function notifyRegistration(
+  supabase: ReturnType<typeof createAdminClient>,
+  memberId: string,
+  result: SubmitResult
+) {
+  const { data: member } = await supabase
+    .from('ht_members')
+    .select('line_uid, full_name')
+    .eq('id', memberId)
+    .maybeSingle()
+  if (!member?.line_uid) return
+
+  const greeting = member.full_name ? `สวัสดีคุณ ${member.full_name}\n` : ''
+  const text =
+    result.status === 'active'
+      ? `${greeting}✅ ลงทะเบียนรับประกันสำเร็จ\nขอบคุณที่เลือกใช้สินค้า Hosttail ดูรายละเอียดการรับประกันได้ที่เมนูสมาชิก`
+      : `${greeting}📥 ได้รับข้อมูลการลงทะเบียนแล้ว\n${result.message}\nเราจะแจ้งผลให้ทราบทาง LINE นี้`
+  await pushLineMessage(member.line_uid, [{ type: 'text', text }])
 }
 
 /** The member's own registrations + warranty items, most recent first. */

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 import type { OrderChannel } from '@/lib/brand'
+import { collapseSplitBill, type OrderLine } from './resolve'
 
 type Client = SupabaseClient<Database>
 
@@ -70,33 +71,35 @@ export async function listBoundOrders(supabase: Client, memberId: string, limit 
 
   const { data: lines } = await supabase
     .from('sales_transaction')
-    .select('order_no, bill_no, product_name, amount, order_status, txn_date, transfer_date')
+    .select('order_no, bill_no, sku, product_name, quantity, amount, keyword, order_status, txn_date, transfer_date')
     .eq('project', 'Hosttail')
     .in('bill_no', [...refToShop.keys()])
-  const byOrder = new Map<string, BoundOrder>()
-  for (const l of lines ?? []) {
+
+  // One row per platform order id. JST may split it into several internal
+  // orders (shipments); collapseSplitBill keeps the children and drops a
+  // split parent, exactly as resolveByOrderRef does when it is registered.
+  const byBill = new Map<string, OrderLine[]>()
+  for (const l of (lines ?? []) as OrderLine[]) {
     if (!l.order_no || !l.bill_no) continue
-    const shop = refToShop.get(l.bill_no) ?? ''
-    const fresh: BoundOrder = {
+    byBill.set(l.bill_no, [...(byBill.get(l.bill_no) ?? []), l])
+  }
+
+  const byOrder = new Map<string, BoundOrder>()
+  for (const [billNo, group] of byBill) {
+    const merged = collapseSplitBill(group) ?? { orderNo: [...new Set(group.map((l) => l.order_no))].sort().join('+'), lines: group }
+    const live = merged.lines.filter((l) => (l.order_status ?? '') !== 'Cancelled')
+    const shop = refToShop.get(billNo) ?? ''
+    byOrder.set(billNo, {
       shop,
       channel: channelForShop(shop),
-      billNo: l.bill_no,
-      orderNo: l.order_no,
-      txnDate: l.txn_date,
-      amount: 0,
-      products: [],
-      cancelled: true,
-      settled: false,
-    }
-    const o = byOrder.get(l.order_no) ?? fresh
-    const live = (l.order_status ?? '') !== 'Cancelled'
-    if (live) {
-      o.cancelled = false
-      o.amount += Number(l.amount) || 0
-    }
-    if (l.transfer_date) o.settled = true
-    if (l.product_name && !o.products.includes(l.product_name)) o.products.push(l.product_name)
-    byOrder.set(l.order_no, o)
+      billNo,
+      orderNo: merged.orderNo,
+      txnDate: merged.lines.map((l) => l.txn_date).filter(Boolean).sort()[0] ?? null,
+      amount: live.reduce((sum, l) => sum + (Number(l.amount) || 0), 0),
+      products: [...new Set(merged.lines.map((l) => l.product_name).filter(Boolean) as string[])],
+      cancelled: live.length === 0,
+      settled: live.some((l) => l.transfer_date),
+    })
   }
   return [...byOrder.values()]
     .sort((a, b) => (b.txnDate ?? '').localeCompare(a.txnDate ?? ''))

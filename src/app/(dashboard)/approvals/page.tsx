@@ -6,7 +6,7 @@ import { getStaffSession } from '@/lib/session'
 import { roleAtLeast } from '@/lib/permissions'
 import { formatThaiDate } from '@/lib/format-th'
 import { channelMeta } from '@/lib/brand'
-import { resolveByPhone, type ResolveOutcome } from '@/lib/orders/resolve'
+import { resolveByOrderRef, resolveByPhone, type ResolveOutcome } from '@/lib/orders/resolve'
 import { WarrantyCard, type BillOption } from './warranty-card'
 import { RelinkCard } from './relink-card'
 
@@ -38,13 +38,17 @@ type TabKey = (typeof TABS)[number]['key']
 const DONE_LIMIT = 50
 
 /** Turn resolver outcomes (live, or the auto_match_candidates snapshot) into pickable bills. */
-function toOptions(outcomes: ResolveOutcome[]): BillOption[] {
+function toOptions(outcomes: ResolveOutcome[], viaPhone = false): BillOption[] {
   const byNo = new Map<string, BillOption>()
   for (const o of outcomes) {
     if (o.status === 'matched' || o.status === 'unsettled') {
       const first = o.lines[0]
       byNo.set(o.orderNo, {
         orderNo: o.orderNo,
+        // A split bill reads "277516+277517" -- not a key approveWarranty can
+        // look up, so approve it by the platform order id behind it.
+        ref: o.orderNo.includes('+') ? (first?.bill_no ?? o.orderNo) : o.orderNo,
+        viaPhone,
         date: first?.txn_date ? formatThaiDate(first.txn_date) : null,
         amount: o.status === 'matched' ? o.netAmount : null,
         products: [...new Set(o.lines.map((l) => l.product_name).filter(Boolean))].join(', '),
@@ -54,6 +58,8 @@ function toOptions(outcomes: ResolveOutcome[]): BillOption[] {
         if (!byNo.has(c.orderNo)) {
           byNo.set(c.orderNo, {
             orderNo: c.orderNo,
+            ref: c.orderNo,
+            viaPhone,
             date: c.transferDate ? formatThaiDate(c.transferDate) : null,
             amount: c.netAmount,
             products: '',
@@ -281,22 +287,41 @@ async function PendingList({
   // Facebook/LINE claims carry a phone, not an order id: look the member's
   // orders up live so the admin picks the real bill instead of hunting in JST.
   // Always the member's OWN profile phone, per resolveByPhone's security note.
+  //
+  // Order-id claims use the snapshot taken at submit time. When it holds
+  // nothing usable (legacy rows were never resolved, or the ETL was behind),
+  // retry the id live, then fall back to the member's phone -- customers do
+  // pick the wrong tab (a Facebook order registered under Shopee).
   const optionsById = new Map<string, BillOption[]>()
+  const byPhone = async (phone: string | null | undefined) => {
+    if (!phone) return []
+    try {
+      return toOptions(await resolveByPhone(admin, phone), true)
+    } catch (err) {
+      console.error('[approvals] phone lookup failed', err)
+      return []
+    }
+  }
   await Promise.all(
     regs.map(async (r) => {
       if (MANUAL_CHANNELS.includes(r.channel)) return
-      let outcomes: ResolveOutcome[] = []
       const phone = byId.get(r.member_id)?.phone
-      if (PHONE_CHANNELS.includes(r.channel) && phone) {
-        try {
-          outcomes = await resolveByPhone(admin, phone)
-        } catch (err) {
-          console.error('[approvals] phone lookup failed', err)
-        }
-      } else if (Array.isArray(r.auto_match_candidates)) {
-        outcomes = r.auto_match_candidates as unknown as ResolveOutcome[]
+      if (PHONE_CHANNELS.includes(r.channel)) {
+        optionsById.set(r.id, (await byPhone(phone)).map((o) => ({ ...o, viaPhone: false })))
+        return
       }
-      optionsById.set(r.id, toOptions(outcomes))
+      let options = Array.isArray(r.auto_match_candidates)
+        ? toOptions(r.auto_match_candidates as unknown as ResolveOutcome[])
+        : []
+      if (!options.length && r.order_ref_raw) {
+        try {
+          options = toOptions([await resolveByOrderRef(admin, r.order_ref_raw, r.channel === 'event' ? 'event' : 'online')])
+        } catch (err) {
+          console.error('[approvals] order lookup failed', err)
+        }
+      }
+      if (!options.length && r.channel !== 'event') options = await byPhone(phone)
+      optionsById.set(r.id, options)
     })
   )
 
