@@ -91,17 +91,39 @@ export async function proxy(request: NextRequest) {
 
   // Role is read from a cookie set at login time by /api/auth/login (Phase 2)
   // so the dashboard doesn't hit ht_staff on every single navigation.
-  const role = request.cookies.get('ht_role')?.value
+  let role = request.cookies.get('ht_role')?.value
   if (!role) {
-    // Logged into Supabase Auth but the RBAC cookie is missing (e.g. logged
-    // in before this app set it up) -- force a clean re-login rather than
-    // silently falling back to the most restrictive role.
-    return NextResponse.redirect(new URL('/login', request.url))
+    // The Supabase session outlives the 12h ht_role cookie. Redirecting to
+    // /login here loops forever: /login sees a valid staff session and
+    // redirects straight back. Re-derive the role from ht_staff instead (one
+    // lookup, only when the cookie is missing) and re-issue the cookie.
+    const { data: staff } = await supabase
+      .from('ht_staff')
+      .select('role')
+      .eq('auth_user_id', user.id)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle()
+    if (!staff) {
+      // Not (or no longer) staff: /login's getStaffSession() returns null
+      // too, so it shows the form instead of bouncing back.
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    role = staff.role as string
+    proxyResponse.cookies.set('ht_role', role, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 12,
+    })
   }
   if (role === 'admin') return proxyResponse
 
   if (!isPathAllowed(pathname, role)) {
-    return NextResponse.redirect(new URL(getHomePath(), request.url))
+    const res = NextResponse.redirect(new URL(getHomePath(), request.url))
+    proxyResponse.cookies.getAll().forEach((c) => res.cookies.set(c))
+    return res
   }
   return proxyResponse
 }
